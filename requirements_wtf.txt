@@ -1,0 +1,8 @@
+wheel
+wget
+minecraft_launcher_lib
+ttkbootstrap
+requests
+Pillow
+psutil
+speedtest-cli
