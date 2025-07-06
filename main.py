@@ -287,7 +287,7 @@ class WTFModpackLauncher():
         self.canvas.create_rectangle(70, 155, 320, 205, fill="#333333", outline="#555555", width=1)
         self.canvas.create_text(
             195, 170,
-            text="📦 STATO MODPACK",
+            text="📦 VERSIONE PACK",
             fill="#15d38f",
             font=("Arial", 10, "bold")
         )
