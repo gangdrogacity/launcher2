@@ -18,9 +18,9 @@ jobs:
         with:
           path: .
 
-      - run: mv ./dist/windows/main.exe ./dist/windows/pycraft.exe
+      - run: mv ./dist/windows/main.exe ./dist/windows/WTF_Modpack_Launcher.exe
 
       - uses: actions/upload-artifact@v2
         with:
-          name: PyCraft Nightly Build
-          path: ./dist/windows/pycraft.exe
+          name: WTF Nightly Build
+          path: ./dist/windows/WTF_Modpack_Launcher.exe
