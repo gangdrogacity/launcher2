@@ -4,3 +4,4 @@ mods/
 config/
 logs/
 build/
+dist/
