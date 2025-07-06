@@ -23,7 +23,8 @@ for dir_name in data_dirs:
 data_files = [
     'README.md',
     'requirements.txt',
-    'icon.ico'
+    'icon.ico',
+	'launcher_version.txt'
 ]
 
 for file_name in data_files:

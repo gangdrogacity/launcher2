@@ -6,4 +6,3 @@ logs/
 build/
 dist/
 __pycache__/
-launcher_version.txt
