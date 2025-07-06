@@ -22,11 +22,11 @@ import sys
 from threading import Thread
 import time
 import requests
-from speedtracker import SpeedTracker
 import wget
 from zipfile import ZipFile
 from shutil import move, rmtree, copytree
 import psutil
+import re
 
 print("🚀 Avvio WTF Modpack Launcher v1.0...")
 print("⏳ Caricamento componenti, attendere prego...")
@@ -256,7 +256,11 @@ class WTFModpackLauncher():
         self.window = style.master
         self.window.geometry("1024x600+110+60")
         self.window.title("WTF Modpack Launcher")
-        self.window.configure(bg="#23272a")
+        self.window.configure(bg="#1c1c1c")
+        
+        # Track Minecraft process
+        self.minecraft_process = None
+        self.is_minecraft_running = False
 
         if os_name.startswith("Windows"):
             self.window.iconbitmap(r"{}/icon.ico".format(currn_dir))
@@ -271,7 +275,7 @@ class WTFModpackLauncher():
         """Setup the main user interface"""
         self.canvas = Canvas(
             self.window,
-            bg="#23272a",
+            bg="#1c1c1c",
             height=600,
             width=1024,
             bd=0,
@@ -280,100 +284,142 @@ class WTFModpackLauncher():
         )
         self.canvas.place(x=0, y=0)
 
-        # Background image
-        try:
-            self.background_img = PhotoImage(file=f"img/bg.png")
-            self.background = self.canvas.create_image(512, 300, image=self.background_img)
-        except:
-            pass
+        # Background - solid color only
+        self.canvas.create_rectangle(0, 0, 1024, 600, fill="#1c1c1c", outline="")
+        
+        # Header section with gradient effect
+        self.canvas.create_rectangle(0, 0, 1024, 120, fill="#2d2d2d", outline="")
+        self.canvas.create_rectangle(0, 115, 1024, 120, fill="#15d38f", outline="")
 
-        # Title
+        # Title with modern styling
         self.canvas.create_text(
-            512, 80,
-            text="WTF Modpack Launcher",
+            512, 60,
+            text="WTF MODPACK LAUNCHER",
             fill="white",
-            font=("Minecraft", int(36.0))
+            font=("Arial", 28, "bold")
         )
 
-        # Version and status info area
-        self.version_text = self.canvas.create_text(
-            512, 140,
-            text=f"Versione: {wtf_modpack_version if wtf_modpack_version else 'Non Installato'}",
+        # Subtitle
+        self.canvas.create_text(
+            512, 90,
+            text="Minecraft 1.20.1 • Forge 47.3.33",
+            fill="#b0b0b0",
+            font=("Arial", 12)
+        )
+
+        # Status cards background
+        self.canvas.create_rectangle(50, 140, 974, 220, fill="#2d2d2d", outline="#444444", width=1)
+        
+        # Version status card
+        self.canvas.create_rectangle(70, 155, 320, 205, fill="#333333", outline="#555555", width=1)
+        self.canvas.create_text(
+            195, 170,
+            text="📦 STATO MODPACK",
             fill="#15d38f",
-            font=("Galiver Sans", int(16.0))
+            font=("Arial", 10, "bold")
         )
         
-        # Connection status indicator
-        connection_status = "🟢 Online" if connected else "🔴 Offline"
-        connection_color = "#15d38f" if connected else "#ff4757"
-        self.connection_text = self.canvas.create_text(
-            850, 30,
-            text=connection_status,
-            fill=connection_color,
-            font=("Galiver Sans", int(12.0))
+        # Version and status info area
+        self.version_text = self.canvas.create_text(
+            195, 190,
+            text=f"{wtf_modpack_version if wtf_modpack_version else 'Non Installato'}",
+            fill="white",
+            font=("Arial", 12, "bold")
+        )
+        
+        # System info card
+        self.canvas.create_rectangle(340, 155, 590, 205, fill="#333333", outline="#555555", width=1)
+        self.canvas.create_text(
+            465, 170,
+            text="💾 SISTEMA",
+            fill="#15d38f",
+            font=("Arial", 10, "bold")
         )
         
         # System info display
         total_ram = get_size(svmem.total)
-        system_info = f"💾 RAM Sistema: {total_ram} | 🎮 RAM Allocata: {allocated_ram if allocated_ram else f'{WTF_MINIMUM_RAM}G'}"
+        system_info = f"RAM: {total_ram} | Allocata: {allocated_ram if allocated_ram else f'{WTF_MINIMUM_RAM}G'}"
         self.system_info_text = self.canvas.create_text(
-            512, 160,
+            465, 190,
             text=system_info,
-            fill="gray",
-            font=("Galiver Sans", int(12.0))
+            fill="white",
+            font=("Arial", 9)
+        )
+
+        # Connection status card
+        self.canvas.create_rectangle(610, 155, 860, 205, fill="#333333", outline="#555555", width=1)
+        self.canvas.create_text(
+            735, 170,
+            text="🌐 CONNESSIONE",
+            fill="#15d38f",
+            font=("Arial", 10, "bold")
+        )
+        
+        # Connection status indicator
+        connection_status = "Online" if connected else "Offline"
+        connection_color = "white" if connected else "#ff4757"
+        self.connection_text = self.canvas.create_text(
+            735, 190,
+            text=connection_status,
+            fill=connection_color,
+            font=("Arial", 11, "bold")
         )
 
         # Modpack status indicator
         if wtf_modpack_installed:
-            status_text = "✅ Modpack Installato e Pronto"
+            status_text = "✅ Pronto per Giocare"
             status_color = "#15d38f"
         else:
-            status_text = "⚠️ Modpack Non Installato"
+            status_text = "⚠️ Installazione Richiesta"
             status_color = "#ffa502"
             
         self.modpack_status_text = self.canvas.create_text(
-            512, 180,
+            512, 235,
             text=status_text,
             fill=status_color,
-            font=("Galiver Sans", int(14.0))
+            font=("Arial", 14, "bold")
         )
 
         # Install/Update button
         if wtf_modpack_installed:
             button_text = "🔄 Verifica Aggiornamenti"
             button_command = self.check_for_updates
-            button_style = "info-outline"
+            button_style = "info"
         else:
             button_text = "📦 Installa WTF Modpack"
             button_command = self.install_modpack
-            button_style = "primary-outline"
+            button_style = "primary"
 
         self.install_button = Button(
             self.window,
             text=button_text,
             command=button_command,
-            bootstyle=button_style
+            bootstyle=button_style,
+            width=25
         )
-        self.install_button.place(x=150, y=250, width=220, height=50)
+        self.install_button.place(x=120, y=280, width=250, height=45)
 
-        # Play button
-        play_text = "🎮 Gioca Ora!" if wtf_modpack_installed else "🚫 Installa Prima il Modpack"
+        # Play button (larger and more prominent)
+        play_text = self.get_play_button_text()
+        play_command = self.get_play_button_command()
         self.play_button = Button(
             self.window,
             text=play_text,
-            command=self.launch_minecraft,
-            bootstyle="success-outline"
+            command=play_command,
+            bootstyle="success" if not self.is_minecraft_running else "danger",
+            width=30
         )
-        self.play_button.place(x=400, y=250, width=220, height=50)
+        self.play_button.place(x=387, y=275, width=250, height=55)
 
         # Settings button
         self.settings_button = Button(
             self.window,
             text="⚙️ Impostazioni",
             command=self.open_settings,
-            bootstyle="warning-outline"
+            bootstyle="warning",
+            width=15
         )
-        self.settings_button.place(x=650, y=250, width=120, height=50)
+        self.settings_button.place(x=655, y=280, width=120, height=45)
 
         # Repair button (only show if modpack is installed)
         if wtf_modpack_installed:
@@ -381,61 +427,205 @@ class WTFModpackLauncher():
                 self.window,
                 text="🔧 Ripara",
                 command=self.verify_and_repair_installation,
-                bootstyle="secondary-outline"
+                bootstyle="secondary",
+                width=12
             )
-            self.repair_button.place(x=790, y=250, width=100, height=50)
+            self.repair_button.place(x=790, y=280, width=100, height=45)
 
         # Progress bar (initially hidden)
         self.progress_bar = Progressbar(
             self.window,
-            mode='indeterminate'
+            mode='indeterminate',
+            bootstyle="success-striped"
+        )
+
+        # Status area background
+        self.canvas.create_rectangle(50, 360, 974, 480, fill="#2d2d2d", outline="#444444", width=1)
+        
+        # Status header
+        self.canvas.create_text(
+            512, 375,
+            text="📊 STATO OPERAZIONI",
+            fill="#15d38f",
+            font=("Arial", 11, "bold")
         )
 
         # Main status label
         self.status_label = Label(
             self.window,
             text="🚀 Pronto per l'azione! Seleziona un'opzione sopra per iniziare.",
-            background="#23272a",
+            background="#2d2d2d",
             foreground="white",
-            font=self.custom_font4
+            font=("Arial", 12, "bold")
         )
-        self.status_label.place(x=512, y=380, anchor="center")
+        self.status_label.place(x=512, y=400, anchor="center")
         
         # Detailed status area (for longer messages)
         self.detail_label = Label(
             self.window,
             text="",
-            background="#23272a",
-            foreground="#15d38f",
-            font=self.custom_font4,
+            background="#2d2d2d",
+            foreground="#b0b0b0",
+            font=("Arial", 10),
             wraplength=800
         )
-        self.detail_label.place(x=512, y=420, anchor="center")
+        self.detail_label.place(x=512, y=425, anchor="center")
         
         # Progress percentage label
         self.progress_label = Label(
             self.window,
             text="",
-            background="#23272a",
-            foreground="yellow",
-            font=self.custom_font4
+            background="#2d2d2d",
+            foreground="#15d38f",
+            font=("Arial", 10, "bold")
         )
-        self.progress_label.place(x=512, y=460, anchor="center")
+        self.progress_label.place(x=512, y=450, anchor="center")
 
+        # Footer section
+        self.canvas.create_rectangle(0, 500, 1024, 600, fill="#2d2d2d", outline="")
+        self.canvas.create_rectangle(0, 500, 1024, 505, fill="#15d38f", outline="")
+        
         # Info panel at bottom
         info_text = "💡 Suggerimento: Usa il modpack in modalità offline. Per il multiplayer Premium usa il launcher ufficiale."
         self.info_text = self.canvas.create_text(
-            512, 550,
+            512, 530,
             text=info_text,
-            fill="gray",
-            font=("Galiver Sans", int(10.0)),
+            fill="#b0b0b0",
+            font=("Arial", 10),
+            width=900
+        )
+        
+        # Version info at bottom
+        launcher_version = "WTF Modpack Launcher v1.0 • Creato per Minecraft 1.20.1"
+        self.canvas.create_text(
+            512, 570,
+            text=launcher_version,
+            fill="#666666",
+            font=("Arial", 8),
             width=900
         )
 
         # Enable/disable play button based on installation status
         if not wtf_modpack_installed:
             self.play_button["state"] = "disabled"
+        
+        # Start monitoring Minecraft process
+        self.start_minecraft_monitor()
 
+    def get_play_button_text(self):
+        """Get the appropriate text for the play button based on current state"""
+        if self.is_minecraft_running:
+            return "🛑 Chiudi Gioco"
+        elif not wtf_modpack_installed:
+            return "🚫 Installa Prima il Modpack"
+        else:
+            return "🎮 Gioca Ora!"
+    
+    def get_play_button_command(self):
+        """Get the appropriate command for the play button based on current state"""
+        if self.is_minecraft_running:
+            return self.close_minecraft
+        else:
+            return self.launch_minecraft
+    
+    def start_minecraft_monitor(self):
+        """Start monitoring Minecraft process status"""
+        def monitor_thread():
+            while True:
+                try:
+                    # Check if Minecraft process is still running
+                    if self.minecraft_process and self.minecraft_process.poll() is None:
+                        # Process is still running
+                        if not self.is_minecraft_running:
+                            self.is_minecraft_running = True
+                            self.window.after(0, self.update_play_button)
+                    else:
+                        # Process has ended or doesn't exist
+                        if self.is_minecraft_running:
+                            self.is_minecraft_running = False
+                            self.minecraft_process = None
+                            self.window.after(0, self.update_play_button)
+                            self.window.after(0, lambda: self.update_gui_status(
+                                "✅ Sessione Completata",
+                                "Minecraft è stato chiuso correttamente.",
+                                "Pronto per una nuova partita!"
+                            ))
+                    
+                    time.sleep(2)  # Check every 2 seconds
+                except Exception as e:
+                    print(f"Errore nel monitoraggio Minecraft: {e}")
+                    time.sleep(5)
+        
+        monitor_thread_obj = Thread(target=monitor_thread, daemon=True)
+        monitor_thread_obj.start()
+    
+    def update_play_button(self):
+        """Update the play button text and command based on Minecraft status"""
+        new_text = self.get_play_button_text()
+        new_command = self.get_play_button_command()
+        
+        self.play_button.config(text=new_text, command=new_command)
+        
+        # Update button style based on state
+        if self.is_minecraft_running:
+            self.play_button.config(bootstyle="danger")
+        else:
+            self.play_button.config(bootstyle="success")
+    
+    def close_minecraft(self):
+        """Close the running Minecraft process"""
+        if self.minecraft_process and self.minecraft_process.poll() is None:
+            result = askquestion("🛑 Chiudi Minecraft", 
+                               "🎮 Minecraft è attualmente in esecuzione.\n\n" +
+                               "⚠️ Vuoi davvero chiudere il gioco?\n" +
+                               "Assicurati di aver salvato i tuoi progressi!")
+            
+            if result == 'yes':
+                try:
+                    self.update_gui_status(
+                        "🛑 Chiusura Minecraft...",
+                        "Terminando il processo di Minecraft...",
+                        "Attendi la chiusura completa del gioco"
+                    )
+                    
+                    # Try graceful termination first
+                    self.minecraft_process.terminate()
+                    
+                    # Wait a moment for graceful shutdown
+                    try:
+                        self.minecraft_process.wait(timeout=10)
+                        print("✅ Minecraft chiuso correttamente")
+                    except subprocess.TimeoutExpired:
+                        # Force kill if it doesn't close gracefully
+                        print("⚠️ Forzando la chiusura di Minecraft...")
+                        self.minecraft_process.kill()
+                        self.minecraft_process.wait()
+                        print("✅ Minecraft forzatamente chiuso")
+                    
+                    self.minecraft_process = None
+                    self.is_minecraft_running = False
+                    self.update_play_button()
+                    
+                    showinfo("✅ Gioco Chiuso", 
+                            "🎮 Minecraft è stato chiuso con successo!\n\n" +
+                            "Ora puoi:\n" +
+                            "• Avviare una nuova sessione\n" +
+                            "• Modificare le impostazioni\n" +
+                            "• Verificare aggiornamenti")
+                    
+                except Exception as e:
+                    showerror("❌ Errore", 
+                             f"❌ Errore durante la chiusura di Minecraft:\n\n" +
+                             f"🔧 Dettagli: {str(e)}\n\n" +
+                             f"💡 Prova a chiudere Minecraft manualmente.")
+        else:
+            showwarning("⚠️ Processo Non Trovato", 
+                       "❌ Il processo di Minecraft non è stato trovato.\n\n" +
+                       "Il gioco potrebbe essere già stato chiuso.")
+            self.is_minecraft_running = False
+            self.minecraft_process = None
+            self.update_play_button()
+    
     def check_for_updates(self):
         """Check for modpack updates"""
         if not connected:
@@ -958,23 +1148,20 @@ class WTFModpackLauncher():
                 print(f"📂 Directory Minecraft: {mc_dir}")
                 print(f"🎯 Questo potrebbe richiedere alcuni minuti al primo avvio...")
                 
-                # Launch Minecraft
-                result = subprocess.run(launch_command, capture_output=False)
+                # Launch Minecraft and store process
+                self.minecraft_process = subprocess.Popen(launch_command)
+                self.is_minecraft_running = True
                 
-                if result.returncode == 0:
-                    print(f"✅ Minecraft chiuso correttamente")
-                    self.window.after(0, lambda: self.update_gui_status(
-                        "✅ Sessione Completata",
-                        "Minecraft è stato chiuso correttamente.",
-                        "Pronto per una nuova partita!"
-                    ))
-                else:
-                    print(f"⚠️ Minecraft chiuso con codice: {result.returncode}")
-                    self.window.after(0, lambda: self.update_gui_status(
-                        "⚠️ Minecraft Chiuso",
-                        f"Minecraft si è chiuso con codice di uscita: {result.returncode}",
-                        "Controlla eventuali errori nei log di Minecraft"
-                    ))
+                # Update play button immediately
+                self.window.after(0, self.update_play_button)
+                
+                self.window.after(0, lambda: self.update_gui_status(
+                    "🎮 Minecraft Avviato!",
+                    "Il gioco è stato lanciato con successo.",
+                    "Usa il pulsante 'Chiudi Gioco' per terminare Minecraft quando necessario"
+                ))
+                
+                print(f"✅ Minecraft avviato con PID: {self.minecraft_process.pid}")
                 
             except Exception as e:
                 error_msg = str(e)
@@ -1035,7 +1222,7 @@ class WTFModpackLauncher():
         login_window = tk.Toplevel(self.window)
         login_window.title("🎮 Configurazione Account")
         login_window.geometry("450x300")
-        login_window.configure(bg="#23272a")
+        login_window.configure(bg="#1c1c1c")
         login_window.resizable(False, False)
         
         # Center the window
@@ -1044,17 +1231,17 @@ class WTFModpackLauncher():
         
         # Title
         tk.Label(login_window, text="🎮 Configurazione Account Minecraft", 
-                bg="#23272a", fg="#15d38f", font=self.custom_font3).pack(pady=15)
+                bg="#1c1c1c", fg="#15d38f", font=self.custom_font3).pack(pady=15)
         
         # Description
         tk.Label(login_window, text="Inserisci il tuo username per giocare in modalità offline.", 
-                bg="#23272a", fg="white", font=self.custom_font4).pack(pady=5)
+                bg="#1c1c1c", fg="white", font=self.custom_font4).pack(pady=5)
         
         tk.Label(login_window, text="L'username può essere qualsiasi nome a tua scelta.", 
-                bg="#23272a", fg="gray", font=self.custom_font4).pack(pady=5)
+                bg="#1c1c1c", fg="gray", font=self.custom_font4).pack(pady=5)
         
         # Username input
-        tk.Label(login_window, text="👤 Username:", bg="#23272a", fg="white", font=self.custom_font4).pack(pady=(15, 5))
+        tk.Label(login_window, text="👤 Username:", bg="#1c1c1c", fg="white", font=self.custom_font4).pack(pady=(15, 5))
         
         username_entry = tk.Entry(login_window, width=25, font=self.custom_font4, justify='center')
         username_entry.pack(pady=5)
@@ -1062,13 +1249,13 @@ class WTFModpackLauncher():
         
         # Instructions
         tk.Label(login_window, text="💡 Suggerimenti:", 
-                bg="#23272a", fg="yellow", font=self.custom_font4).pack(pady=(15, 5))
+                bg="#1c1c1c", fg="yellow", font=self.custom_font4).pack(pady=(15, 5))
         tk.Label(login_window, text="• Usa solo lettere, numeri e underscore", 
-                bg="#23272a", fg="gray", font=("Arial", 9)).pack()
+                bg="#1c1c1c", fg="gray", font=("Arial", 9)).pack()
         tk.Label(login_window, text="• Evita spazi e caratteri speciali", 
-                bg="#23272a", fg="gray", font=("Arial", 9)).pack()
+                bg="#1c1c1c", fg="gray", font=("Arial", 9)).pack()
         tk.Label(login_window, text="• Lunghezza consigliata: 3-16 caratteri", 
-                bg="#23272a", fg="gray", font=("Arial", 9)).pack()
+                bg="#1c1c1c", fg="gray", font=("Arial", 9)).pack()
         
         def save_username():
             global username, uid
@@ -1138,7 +1325,7 @@ class WTFModpackLauncher():
         username_entry.bind('<Return>', on_enter)
         
         # Buttons frame
-        button_frame = tk.Frame(login_window, bg="#23272a")
+        button_frame = tk.Frame(login_window, bg="#1c1c1c")
         button_frame.pack(pady=20)
         
         Button(button_frame, text="🎮 Conferma e Gioca", command=save_username, 
@@ -1150,22 +1337,267 @@ class WTFModpackLauncher():
     def open_settings(self):
         """Open settings window"""
         settings_window = tk.Toplevel(self.window)
-        settings_window.title("Settings")
-        settings_window.geometry("500x400")
-        settings_window.configure(bg="#23272a")
+        settings_window.title("⚙️ Impostazioni WTF Modpack")
+        settings_window.geometry("600x500")
+        settings_window.configure(bg="#1c1c1c")
+        settings_window.resizable(False, False)
         
-        # RAM allocation
-        tk.Label(settings_window, text="RAM Allocation (GB):", bg="#23272a", fg="white", font=self.custom_font3).pack(pady=10)
+        # Center the window
+        settings_window.transient(self.window)
+        settings_window.grab_set()
+        
+        # Main container with padding
+        main_frame = tk.Frame(settings_window, bg="#1c1c1c")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Title
+        title_label = tk.Label(main_frame, text="⚙️ IMPOSTAZIONI LAUNCHER", 
+                              bg="#1c1c1c", fg="#15d38f", font=("Arial", 18, "bold"))
+        title_label.pack(pady=(0, 20))
+        
+        # Username Section
+        username_frame = tk.Frame(main_frame, bg="#2d2d2d", relief="solid", bd=1)
+        username_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(username_frame, text="👤 CONFIGURAZIONE ACCOUNT", 
+                bg="#2d2d2d", fg="#15d38f", font=("Arial", 12, "bold")).pack(pady=(10, 5))
+        
+        current_username = username if username else "Non configurato"
+        tk.Label(username_frame, text=f"Username attuale: {current_username}", 
+                bg="#2d2d2d", fg="white", font=("Arial", 10)).pack(pady=5)
+        
+        username_input_frame = tk.Frame(username_frame, bg="#2d2d2d")
+        username_input_frame.pack(pady=10)
+        
+        tk.Label(username_input_frame, text="Nuovo username:", 
+                bg="#2d2d2d", fg="white", font=("Arial", 10)).pack(side="left", padx=(10, 5))
+        
+        self.username_var = tk.StringVar(value=username if username else "")
+        username_entry = tk.Entry(username_input_frame, textvariable=self.username_var, 
+                                 width=20, font=("Arial", 10))
+        username_entry.pack(side="left", padx=5)
+        
+        def change_username():
+            new_username = self.username_var.get().strip()
+            if not new_username:
+                tk.messagebox.showerror("Errore", "Inserisci un username valido!")
+                return
+                
+            if len(new_username) < 3 or len(new_username) > 16:
+                tk.messagebox.showerror("Errore", "L'username deve essere tra 3 e 16 caratteri!")
+                return
+                
+            if not re.match("^[a-zA-Z0-9_]+$", new_username):
+                tk.messagebox.showerror("Errore", "L'username può contenere solo lettere, numeri e underscore!")
+                return
+            
+            global username, uid
+            username = new_username
+            uid = str(uuid.uuid4())
+            
+            data["User-info"][0]["username"] = username
+            data["User-info"][0]["UUID"] = uid
+            data["User-info"][0]["AUTH_TYPE"] = "offline"
+            
+            with open("settings.json", "w") as f:
+                json.dump(data, f, indent=4)
+            
+            tk.messagebox.showinfo("Successo", f"Username cambiato in: {username}")
+            settings_window.destroy()
+        
+        Button(username_input_frame, text="Cambia", command=change_username, 
+               bootstyle="info-outline", width=8).pack(side="left", padx=5)
+        
+        tk.Label(username_frame, text="", bg="#2d2d2d").pack(pady=5)  # Spacer
+        
+        # RAM Section
+        ram_frame = tk.Frame(main_frame, bg="#2d2d2d", relief="solid", bd=1)
+        ram_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(ram_frame, text="💾 GESTIONE MEMORIA RAM", 
+                bg="#2d2d2d", fg="#15d38f", font=("Arial", 12, "bold")).pack(pady=(10, 5))
+        
+        # Current RAM info
+        current_ram = allocated_ram.rstrip('G') if allocated_ram else str(WTF_MINIMUM_RAM)
+        tk.Label(ram_frame, text=f"RAM attualmente allocata: {current_ram}GB", 
+                bg="#2d2d2d", fg="white", font=("Arial", 10)).pack(pady=5)
+        
+        # System RAM info
+        total_ram_gb = int(svmem.total / (1024**3))
+        available_ram_gb = int(svmem.available / (1024**3))
+        tk.Label(ram_frame, text=f"RAM sistema: {total_ram_gb}GB totali, {available_ram_gb}GB disponibili", 
+                bg="#2d2d2d", fg="#b0b0b0", font=("Arial", 9)).pack(pady=2)
+        
+        # RAM input
+        ram_input_frame = tk.Frame(ram_frame, bg="#2d2d2d")
+        ram_input_frame.pack(pady=10)
+        
+        tk.Label(ram_input_frame, text="Nuova allocazione RAM (GB):", 
+                bg="#2d2d2d", fg="white", font=("Arial", 10)).pack(side="left", padx=(10, 5))
+        
+        ram_var = tk.StringVar(value=current_ram)
+        ram_entry = tk.Entry(ram_input_frame, textvariable=ram_var, width=5, font=("Arial", 10))
+        ram_entry.pack(side="left", padx=5)
+        
+        tk.Label(ram_input_frame, text=f"(Min: {WTF_MINIMUM_RAM}GB)", 
+                bg="#2d2d2d", fg="yellow", font=("Arial", 9)).pack(side="left", padx=5)
+        
+        tk.Label(ram_frame, text="", bg="#2d2d2d").pack(pady=5)  # Spacer
+        
+        # System Info Section
+        system_frame = tk.Frame(main_frame, bg="#2d2d2d", relief="solid", bd=1)
+        system_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(system_frame, text="💻 INFORMAZIONI SISTEMA", 
+                bg="#2d2d2d", fg="#15d38f", font=("Arial", 12, "bold")).pack(pady=(10, 5))
+        
+        # System details
+        info_items = [
+            ("Sistema Operativo:", platform.platform()),
+            ("Minecraft Directory:", mc_dir),
+            ("Versione Modpack:", wtf_modpack_version if wtf_modpack_version else "Non installato"),
+            ("Versione Forge:", WTF_FORGE_VERSION),
+            ("Stato Connessione:", "Online" if connected else "Offline")
+        ]
+        
+        for label, value in info_items:
+            info_frame = tk.Frame(system_frame, bg="#2d2d2d")
+            info_frame.pack(fill="x", padx=10, pady=2)
+            
+            tk.Label(info_frame, text=label, bg="#2d2d2d", fg="#b0b0b0", 
+                    font=("Arial", 9), anchor="w").pack(side="left")
+            tk.Label(info_frame, text=value, bg="#2d2d2d", fg="white", 
+                    font=("Arial", 9), anchor="w", wraplength=350).pack(side="right")
+        
+        tk.Label(system_frame, text="", bg="#2d2d2d").pack(pady=5)  # Spacer
+        
+        # Advanced Settings Section
+        advanced_frame = tk.Frame(main_frame, bg="#2d2d2d", relief="solid", bd=1)
+        advanced_frame.pack(fill="x", pady=(0, 20))
+        
+        tk.Label(advanced_frame, text="🔧 IMPOSTAZIONI AVANZATE", 
+                bg="#2d2d2d", fg="#15d38f", font=("Arial", 12, "bold")).pack(pady=(10, 5))
+        
+        # Directory buttons
+        button_frame = tk.Frame(advanced_frame, bg="#2d2d2d")
+        button_frame.pack(pady=10)
+        
+        def open_minecraft_folder():
+            try:
+                if os.path.exists(mc_dir):
+                    os.startfile(mc_dir)
+                else:
+                    tk.messagebox.showerror("Errore", "Directory Minecraft non trovata!")
+            except Exception as e:
+                tk.messagebox.showerror("Errore", f"Impossibile aprire la directory: {str(e)}")
+        
+        def open_logs_folder():
+            try:
+                logs_dir = os.path.join(mc_dir, "logs")
+                if os.path.exists(logs_dir):
+                    os.startfile(logs_dir)
+                else:
+                    tk.messagebox.showwarning("Avviso", "Directory logs non trovata. Avvia Minecraft almeno una volta.")
+            except Exception as e:
+                tk.messagebox.showerror("Errore", f"Impossibile aprire i logs: {str(e)}")
+        
+        Button(button_frame, text="📂 Apri Cartella Minecraft", command=open_minecraft_folder, 
+               bootstyle="secondary-outline", width=20).pack(side="left", padx=5)
+        
+        Button(button_frame, text="📜 Apri Logs", command=open_logs_folder, 
+               bootstyle="secondary-outline", width=15).pack(side="left", padx=5)
+        
+        tk.Label(advanced_frame, text="", bg="#2d2d2d").pack(pady=5)  # Spacer
+        
+        # Bottom buttons
+        button_bottom_frame = tk.Frame(main_frame, bg="#1c1c1c")
+        button_bottom_frame.pack(fill="x", pady=(10, 0))
+        
+        def save_settings():
+            global allocated_ram
+            try:
+                ram_value = int(ram_var.get())
+                if ram_value < WTF_MINIMUM_RAM:
+                    tk.messagebox.showwarning("RAM Insufficiente", 
+                                            f"Il WTF Modpack richiede almeno {WTF_MINIMUM_RAM}GB di RAM.\n" +
+                                            f"Hai inserito {ram_value}GB che potrebbero causare problemi di prestazioni.")
+                    result = tk.messagebox.askquestion("Conferma", "Vuoi comunque salvare questa impostazione?")
+                    if result != 'yes':
+                        return
+                
+                if ram_value > total_ram_gb:
+                    tk.messagebox.showerror("RAM Eccessiva", 
+                                          f"Non puoi allocare più RAM di quella disponibile sul sistema!\n" +
+                                          f"RAM sistema: {total_ram_gb}GB\n" +
+                                          f"RAM richiesta: {ram_value}GB")
+                    return
+                
+                allocated_ram = f"{ram_value}G"
+                data["allocated_ram"] = allocated_ram
+                data["setting-info"][0]["allocated_ram_selected"] = allocated_ram
+                
+                with open("settings.json", "w") as f:
+                    json.dump(data, f, indent=4)
+                
+                tk.messagebox.showinfo("✅ Impostazioni Salvate", 
+                                     f"Impostazioni salvate con successo!\n\n" +
+                                     f"• RAM allocata: {ram_value}GB\n" +
+                                     f"• Username: {username if username else 'Non configurato'}\n\n" +
+                                     f"Le modifiche saranno applicate al prossimo avvio di Minecraft.")
+                settings_window.destroy()
+                
+                # Update system info in main GUI
+                total_ram = get_size(svmem.total)
+                system_info = f"RAM: {total_ram} | Allocata: {allocated_ram}"
+                self.canvas.itemconfig(self.system_info_text, text=system_info)
+                
+            except ValueError:
+                tk.messagebox.showerror("Valore Non Valido", "Inserisci un numero valido per la RAM!")
+        
+        def reset_settings():
+            result = tk.messagebox.askquestion("⚠️ Conferma Reset", 
+                                             "Sei sicuro di voler ripristinare le impostazioni predefinite?\n\n" +
+                                             "Questo resetterà:\n" +
+                                             "• Allocazione RAM al minimo\n" +
+                                             "• Username (dovrai riconfigurarlo)\n" +
+                                             "• Altre impostazioni del launcher")
+            if result == 'yes':
+                global username, uid, allocated_ram
+                username = None
+                uid = None
+                allocated_ram = f"{WTF_MINIMUM_RAM}G"
+                
+                data["User-info"][0]["username"] = None
+                data["User-info"][0]["UUID"] = None
+                data["allocated_ram"] = allocated_ram
+                data["setting-info"][0]["allocated_ram_selected"] = allocated_ram
+                
+                with open("settings.json", "w") as f:
+                    json.dump(data, f, indent=4)
+                
+                tk.messagebox.showinfo("✅ Reset Completato", "Impostazioni ripristinate ai valori predefiniti!")
+                settings_window.destroy()
+        
+        # Bottom buttons
+        Button(button_bottom_frame, text="💾 Salva Impostazioni", command=save_settings, 
+               bootstyle="success", width=18).pack(side="left", padx=(0, 10))
+        
+        Button(button_bottom_frame, text="🔄 Reset Predefiniti", command=reset_settings, 
+               bootstyle="warning", width=18).pack(side="left", padx=10)
+        
+        Button(button_bottom_frame, text="❌ Chiudi", command=settings_window.destroy, 
+               bootstyle="danger", width=10).pack(side="right")
+        tk.Label(settings_window, text="RAM Allocation (GB):", bg="#1c1c1c", fg="white", font=self.custom_font3).pack(pady=10)
         
         ram_var = tk.StringVar(value=allocated_ram.rstrip('G') if allocated_ram else str(WTF_MINIMUM_RAM))
         ram_entry = tk.Entry(settings_window, textvariable=ram_var, width=10, font=self.custom_font4)
         ram_entry.pack(pady=5)
         
-        tk.Label(settings_window, text=f"Minimum required: {WTF_MINIMUM_RAM}GB", bg="#23272a", fg="yellow", font=self.custom_font4).pack()
+        tk.Label(settings_window, text=f"Minimum required: {WTF_MINIMUM_RAM}GB", bg="#1c1c1c", fg="yellow", font=self.custom_font4).pack()
         
         # Minecraft directory display
-        tk.Label(settings_window, text="Minecraft Directory:", bg="#23272a", fg="white", font=self.custom_font4).pack(pady=(20, 5))
-        tk.Label(settings_window, text=mc_dir, bg="#23272a", fg="#15d38f", font=self.custom_font4, wraplength=450).pack()
+        tk.Label(settings_window, text="Minecraft Directory:", bg="#1c1c1c", fg="white", font=self.custom_font4).pack(pady=(20, 5))
+        tk.Label(settings_window, text=mc_dir, bg="#1c1c1c", fg="#15d38f", font=self.custom_font4, wraplength=450).pack()
         
         def save_settings():
             global allocated_ram
@@ -1222,16 +1654,16 @@ class WTFModpackLauncher():
             wtf_modpack_version = version
             
         # Update version text
-        version_display = f"Versione: {wtf_modpack_version if wtf_modpack_version else 'Non Installato'}"
+        version_display = f"{wtf_modpack_version if wtf_modpack_version else 'Non Installato'}"
         self.canvas.itemconfig(self.version_text, text=version_display)
         
         # Update status indicator
         if wtf_modpack_installed:
-            status_text = "✅ Modpack Installato e Pronto"
+            status_text = "✅ Pronto per Giocare"
             status_color = "#15d38f"
             button_text = "🔄 Verifica Aggiornamenti"
-            button_style = "info-outline"
-            play_text = "🎮 Gioca Ora!"
+            button_style = "info"
+            play_text = self.get_play_button_text()
             play_state = "normal"
             
             # Show repair button if modpack is installed
@@ -1240,15 +1672,15 @@ class WTFModpackLauncher():
                     self.window,
                     text="🔧 Ripara",
                     command=self.verify_and_repair_installation,
-                    bootstyle="secondary-outline"
+                    bootstyle="secondary"
                 )
-            self.repair_button.place(x=790, y=250, width=100, height=50)
+            self.repair_button.place(x=790, y=280, width=100, height=45)
             
         else:
-            status_text = "⚠️ Modpack Non Installato"
+            status_text = "⚠️ Installazione Richiesta"
             status_color = "#ffa502"
             button_text = "📦 Installa WTF Modpack"
-            button_style = "primary-outline"
+            button_style = "primary"
             play_text = "🚫 Installa Prima il Modpack"
             play_state = "disabled"
             
@@ -1366,33 +1798,209 @@ class WTFModpackLauncher():
                 return True
                 
         except Exception as e:
-            print(f"❌ Errore durante la verifica: {str(e)}")
+            self.update_gui_status(
+                "❌ Errore durante la verifica",
+                f"Si è verificato un errore durante la verifica: {str(e)}",
+                "Verifica fallita"
+            )
+            print(f"❌ Errore durante la verifica dell'installazione: {str(e)}")
             return False
 
-    def repair_installation(self):
-        """Repair the modpack installation"""
-        try:
-            self.update_gui_status(
-                "🔧 Riparazione in Corso...",
-                "Riparando l'installazione del modpack...",
-                "Reinstallazione componenti mancanti...",
-                True
-            )
+    def run(self):
+        """Start the launcher"""
+        self.window.mainloop()
+
+    def update_gui_status(self, main_status, detail_status="", progress_text="", show_progress=False):
+        """Update the GUI with detailed status information"""
+        self.status_label.config(text=main_status)
+        self.detail_label.config(text=detail_status)
+        self.progress_label.config(text=progress_text)
+        
+        if show_progress:
+            if not self.progress_bar.winfo_viewable():
+                self.progress_bar.place(x=200, y=340, width=600, height=20)
+                self.progress_bar.start()
+        else:
+            if self.progress_bar.winfo_viewable():
+                self.progress_bar.place_forget()
+                self.progress_bar.stop()
+        
+        self.window.update()
+
+    def update_modpack_status(self, installed=None, version=None):
+        """Update modpack status in the GUI"""
+        if installed is not None:
+            global wtf_modpack_installed
+            wtf_modpack_installed = installed
             
-            # Get latest release info
-            latest_release = get_latest_wtf_release()
-            if latest_release:
-                self.download_and_install_modpack(latest_release)
-                return True
-            else:
-                showerror("Errore Riparazione", 
-                         "Impossibile riparare l'installazione.\n" +
-                         "Controlla la connessione Internet e riprova.")
-                return False
+        if version is not None:
+            global wtf_modpack_version
+            wtf_modpack_version = version
+            
+        # Update version text
+        version_display = f"{wtf_modpack_version if wtf_modpack_version else 'Non Installato'}"
+        self.canvas.itemconfig(self.version_text, text=version_display)
+        
+        # Update status indicator
+        if wtf_modpack_installed:
+            status_text = "✅ Pronto per Giocare"
+            status_color = "#15d38f"
+            button_text = "🔄 Verifica Aggiornamenti"
+            button_style = "info"
+            play_text = "🎮 Gioca Ora!"
+            play_state = "normal"
+            
+            # Show repair button if modpack is installed
+            if not hasattr(self, 'repair_button'):
+                self.repair_button = Button(
+                    self.window,
+                    text="🔧 Ripara",
+                    command=self.verify_and_repair_installation,
+                    bootstyle="secondary",
+                    width=12
+                )
+            self.repair_button.place(x=790, y=280, width=100, height=45)
+            
+        else:
+            status_text = "⚠️ Installazione Richiesta"
+            status_color = "#ffa502"
+            button_text = "📦 Installa WTF Modpack"
+            button_style = "primary"
+            play_text = "🚫 Installa Prima il Modpack"
+            play_state = "disabled"
+            
+            # Hide repair button if modpack is not installed
+            if hasattr(self, 'repair_button'):
+                self.repair_button.place_forget()
+            
+        self.canvas.itemconfig(self.modpack_status_text, text=status_text, fill=status_color)
+        self.install_button.config(text=button_text, bootstyle=button_style)
+        if not self.is_minecraft_running:
+            self.play_button.config(text=play_text, state=play_state)
+
+    def update_connection_status(self, is_connected):
+        """Update connection status indicator"""
+        global connected
+        connected = is_connected
+        
+        connection_status = "Online" if connected else "Offline"
+        connection_color = "white" if connected else "#ff4757"
+        
+        self.canvas.itemconfig(self.connection_text, text=connection_status, fill=connection_color)
+
+    def find_forge_version(self):
+        """Find the installed Forge version"""
+        try:
+            versions_dir = os.path.join(mc_dir, "versions")
+            if os.path.exists(versions_dir):
+                # Look for the exact Forge version first
+                if os.path.exists(os.path.join(versions_dir, WTF_FORGE_VERSION)):
+                    return WTF_FORGE_VERSION
+                
+                # Look for any Forge version for 1.20.1
+                for version_folder in os.listdir(versions_dir):
+                    if "1.20.1" in version_folder and "forge" in version_folder.lower():
+                        json_file = os.path.join(versions_dir, version_folder, f"{version_folder}.json")
+                        if os.path.exists(json_file):
+                            return version_folder
+                
+                # Fallback to vanilla 1.20.1 if available
+                if os.path.exists(os.path.join(versions_dir, "1.20.1")):
+                    return "1.20.1"
+                    
+            return None
+                        
+        except Exception as e:
+            print(f"❌ Errore nella ricerca versione Forge: {str(e)}")
+            return None
+
+    def verify_and_repair_installation(self):
+        """Verify and repair the modpack installation"""
+        try:
+            result = askquestion("🔧 Riparazione Installazione", 
+                               "🔍 Verifica e ripara l'installazione del WTF Modpack.\n\n" +
+                               "Questo processo:\n" +
+                               "• Controllerà l'integrità dei file installati\n" +
+                               "• Reinstallerà componenti mancanti\n" +
+                               "• Riparerà eventuali configurazioni corrotte\n\n" +
+                               "⏱️ Il processo può richiedere alcuni minuti.\n" +
+                               "Vuoi procedere?")
+            
+            if result == 'yes':
+                def repair_thread():
+                    try:
+                        self.window.after(0, lambda: self.update_gui_status(
+                            "🔍 Verifica Installazione...",
+                            "Controllando l'integrità dei file del modpack...",
+                            "Analisi componenti in corso...",
+                            True
+                        ))
+                        
+                        # Check Minecraft installation
+                        mc_installed = minecraft_launcher_lib.utils.is_version_valid("1.20.1", mc_dir)
+                        
+                        # Check Forge installation
+                        forge_installed = self.find_forge_version() is not None
+                        
+                        # Check mods directory
+                        mods_dir = os.path.join(mc_dir, "mods")
+                        mods_count = 0
+                        if os.path.exists(mods_dir):
+                            mods_count = len([f for f in os.listdir(mods_dir) if f.endswith('.jar')])
+                        
+                        issues_found = []
+                        if not mc_installed:
+                            issues_found.append("Minecraft 1.20.1 non installato")
+                        if not forge_installed:
+                            issues_found.append("Minecraft Forge non trovato")
+                        if mods_count == 0:
+                            issues_found.append("Mod del modpack mancanti")
+                        
+                        if issues_found:
+                            self.window.after(0, lambda: self.update_gui_status(
+                                "⚠️ Problemi Rilevati",
+                                f"Trovati {len(issues_found)} problemi da risolvere",
+                                "Avvio riparazione automatica...",
+                                True
+                            ))
+                            
+                            # Auto-repair by reinstalling
+                            latest_release = get_latest_wtf_release()
+                            if latest_release:
+                                self.window.after(0, lambda: self.download_and_install_modpack(latest_release))
+                            else:
+                                self.window.after(0, lambda: showerror("Errore Riparazione", 
+                                                                      "Impossibile riparare: repository non raggiungibile."))
+                        else:
+                            self.window.after(0, lambda: self.update_gui_status(
+                                "✅ Installazione Verificata",
+                                "L'installazione del modpack è corretta e completa.",
+                                f"Componenti verificati: Minecraft ✓ Forge ✓ Mod ({mods_count}) ✓"
+                            ))
+                            
+                            self.window.after(0, lambda: showinfo("✅ Verifica Completata", 
+                                                                 f"🎯 L'installazione del WTF Modpack è perfetta!\n\n" +
+                                                                 f"📊 Componenti verificati:\n" +
+                                                                 f"   ✅ Minecraft 1.20.1\n" +
+                                                                 f"   ✅ Minecraft Forge\n" +
+                                                                 f"   ✅ {mods_count} mod installate\n\n" +
+                                                                 f"🎮 Il modpack è pronto per essere giocato!"))
+                        
+                    except Exception as e:
+                        error_msg = str(e)
+                        self.window.after(0, lambda: self.update_gui_status(
+                            "❌ Errore Verifica",
+                            f"Errore durante la verifica: {error_msg}",
+                            "Controlla i dettagli dell'errore"
+                        ))
+                        self.window.after(0, lambda: showerror("❌ Errore Verifica", 
+                                                              f"Si è verificato un errore durante la verifica:\n\n{error_msg}"))
+                
+                repair_thread_obj = Thread(target=repair_thread, daemon=True)
+                repair_thread_obj.start()
                 
         except Exception as e:
-            print(f"❌ Errore durante la riparazione: {str(e)}")
-            showerror("Errore Riparazione", f"Errore durante la riparazione: {str(e)}")
+            print(f"❌ Errore durante la verifica: {str(e)}")
             return False
 
 

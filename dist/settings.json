@@ -1,0 +1,33 @@
+{
+    "accessToken": null,
+    "clientToken": null,
+    "User-info": [
+        {
+            "username": null,
+            "AUTH_TYPE": null,
+            "UUID": null
+        }
+    ],
+    "PC-info": [
+        {
+            "OS": "Windows-11-10.0.26100-SP0",
+            "Total-Ram": "7.88GB"
+        }
+    ],
+    "Minecraft-home": "C:\\Users\\sderl\\Documents\\PyCraft\\dist/.minecraft",
+    "selected-version": "WTF Modpack - Forge 1.20.1-47.3.33",
+    "Tor-Enabled": false,
+    "setting-info": [
+        {
+            "tor_enabled_selected": false,
+            "allocated_ram_selected": "4G"
+        }
+    ],
+    "allocated_ram": "4G",
+    "jvm-args": null,
+    "executablePath": "C:\\\\Program Files\\\\BellSoft\\\\LibericaJDK-17\\\\bin\\\\java",
+    "ramlimiterExceptionBypassed": false,
+    "ramlimiterExceptionBypassedSelected": false,
+    "wtf_modpack_version": null,
+    "wtf_modpack_installed": false
+}

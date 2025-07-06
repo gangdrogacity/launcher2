@@ -5,4 +5,6 @@ ttkbootstrap
 requests
 Pillow
 psutil
-speedtest-cli
+numpy
+imageio
+tkvideo
