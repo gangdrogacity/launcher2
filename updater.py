@@ -98,7 +98,8 @@ class LauncherUpdater:
             
             # Cerca il file appropriato per il sistema operativo
             if os_type == 'windows':
-                if 'windows' in asset_name or asset_name.endswith('.exe') or asset_name.endswith('.zip'):
+                # Priorità ai file .exe per Windows
+                if asset_name.endswith('.exe'):
                     return asset['browser_download_url']
             elif os_type == 'linux':
                 if 'linux' in asset_name or asset_name.endswith('.tar.gz'):
@@ -107,10 +108,11 @@ class LauncherUpdater:
                 if 'mac' in asset_name or 'darwin' in asset_name or asset_name.endswith('.dmg'):
                     return asset['browser_download_url']
         
-        # Fallback: cerca un file zip generico o il primo asset
-        for asset in release_data['assets']:
-            if asset['name'].endswith('.zip'):
-                return asset['browser_download_url']
+        # Fallback per Windows: cerca file con 'windows' nel nome
+        if os_type == 'windows':
+            for asset in release_data['assets']:
+                if 'windows' in asset['name'].lower():
+                    return asset['browser_download_url']
         
         # Ultimo fallback: primo asset disponibile
         if release_data['assets']:
@@ -149,7 +151,11 @@ class LauncherUpdater:
             # Determina il nome del file
             filename = download_url.split('/')[-1]
             if not filename or filename == 'latest':
-                filename = f"launcher_update_{int(time.time())}.zip"
+                # Per file .exe, usa un nome specifico
+                if download_url.endswith('.exe') or 'exe' in download_url:
+                    filename = f"WTF_Modpack_Launcher_update.exe"
+                else:
+                    filename = f"launcher_update_{int(time.time())}.zip"
             
             file_path = os.path.join(self.temp_dir, filename)
             total_size = int(response.headers.get('content-length', 0))
@@ -172,23 +178,21 @@ class LauncherUpdater:
             print(f"❌ Errore durante il download: {e}")
             raise
     
-    def extract_and_install(self, update_file):
-        """Estrae e installa l'aggiornamento"""
+    def install_update(self, update_file, new_version=None):
+        """Installa l'aggiornamento sostituendo l'eseguibile corrente"""
         try:
-            print("📦 Estrazione aggiornamento...")
+            print("� Installazione aggiornamento...")
             
-            # Crea una directory temporanea per l'estrazione
-            extract_dir = os.path.join(self.temp_dir, "update_extract")
-            os.makedirs(extract_dir, exist_ok=True)
+            # Determina il nome dell'eseguibile corrente
+            current_exe = self.get_current_executable()
+            if not current_exe:
+                raise Exception("Impossibile determinare l'eseguibile corrente")
             
-            # Estrae il file
-            with ZipFile(update_file, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
+            print(f"📝 Eseguibile corrente: {current_exe}")
+            print(f"� Nuovo eseguibile: {update_file}")
             
-            print("🔄 Installazione aggiornamento...")
-            
-            # Crea uno script di aggiornamento per sostituire i file
-            update_script = self.create_update_script(extract_dir)
+            # Crea uno script di aggiornamento per sostituire l'eseguibile
+            update_script = self.create_exe_update_script(update_file, current_exe, new_version)
             
             print("🚀 Avvio processo di aggiornamento...")
             
@@ -204,80 +208,144 @@ class LauncherUpdater:
             print(f"❌ Errore durante l'installazione: {e}")
             raise
     
-    def create_update_script(self, extract_dir):
-        """Crea uno script per completare l'aggiornamento"""
+    def get_current_executable(self):
+        """Determina il percorso dell'eseguibile corrente"""
+        try:
+            # Se stiamo eseguendo un file .exe compilato
+            if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
+                return sys.executable
+            
+            # Cerca file eseguibili nella directory del launcher
+            possible_names = [
+                'WTF_Modpack_Launcher.exe',
+                'main.exe',
+                'launcher.exe'
+            ]
+            
+            for name in possible_names:
+                exe_path = os.path.join(self.launcher_dir, name)
+                if os.path.exists(exe_path):
+                    return exe_path
+            
+            return None
+            
+        except Exception as e:
+            print(f"Errore nel determinare l'eseguibile corrente: {e}")
+            return None
+    
+    def create_exe_update_script(self, new_exe_path, current_exe_path, new_version=None):
+        """Crea uno script per sostituire l'eseguibile corrente"""
         if platform.system() == 'Windows':
             script_path = os.path.join(self.temp_dir, "update_launcher.bat")
+            
+            # Crea il nome del backup
+            backup_exe = current_exe_path + ".backup"
+            version_file = os.path.join(self.launcher_dir, "launcher_version.txt")
+            
+            version_update_cmd = ""
+            if new_version:
+                version_update_cmd = f'echo {new_version}> "{version_file}"'
+            
             script_content = f"""@echo off
 echo Aggiornamento WTF Modpack Launcher in corso...
 timeout /t 3 /nobreak > nul
 
 REM Termina eventuali processi del launcher
+taskkill /f /im "{os.path.basename(current_exe_path)}" 2>nul
 taskkill /f /im "WTF_Modpack_Launcher.exe" 2>nul
 taskkill /f /im "main.exe" 2>nul
-taskkill /f /im "python.exe" 2>nul
 
 REM Attende che i processi si chiudano
-timeout /t 2 /nobreak > nul
+timeout /t 3 /nobreak > nul
 
-REM Esegue il backup dei file correnti
-if exist "{self.launcher_dir}\\backup" rmdir /s /q "{self.launcher_dir}\\backup"
-mkdir "{self.launcher_dir}\\backup"
-xcopy "{self.launcher_dir}\\*" "{self.launcher_dir}\\backup\\" /e /i /y /exclude:backup
+REM Crea backup dell'eseguibile corrente
+if exist "{current_exe_path}" (
+    copy "{current_exe_path}" "{backup_exe}" >nul
+    echo Backup creato: {backup_exe}
+)
 
-REM Copia i nuovi file
-xcopy "{extract_dir}\\*" "{self.launcher_dir}\\" /e /i /y
+REM Sostituisce l'eseguibile
+copy "{new_exe_path}" "{current_exe_path}" >nul
+if %errorlevel% neq 0 (
+    echo Errore nella sostituzione del file!
+    if exist "{backup_exe}" (
+        copy "{backup_exe}" "{current_exe_path}" >nul
+        echo Backup ripristinato
+    )
+    pause
+    exit /b 1
+)
+
+REM Aggiorna il file di versione
+{version_update_cmd}
+
+echo Aggiornamento completato con successo!
 
 REM Riavvia il launcher
-if exist "{self.launcher_dir}\\WTF_Modpack_Launcher.exe" (
-    start "" "{self.launcher_dir}\\WTF_Modpack_Launcher.exe"
-) else if exist "{self.launcher_dir}\\main.exe" (
-    start "" "{self.launcher_dir}\\main.exe"
-) else if exist "{self.launcher_dir}\\main.py" (
-    start "" python "{self.launcher_dir}\\main.py"
-)
+start "" "{current_exe_path}"
 
 REM Pulisce i file temporanei
 timeout /t 5 /nobreak > nul
-rmdir /s /q "{self.temp_dir}"
+if exist "{backup_exe}" del "{backup_exe}"
+rmdir /s /q "{self.temp_dir}" 2>nul
 
 echo Aggiornamento completato!
-pause
 del "%~f0"
 """
         else:
             script_path = os.path.join(self.temp_dir, "update_launcher.sh")
+            backup_exe = current_exe_path + ".backup"
+            version_file = os.path.join(self.launcher_dir, "launcher_version.txt")
+            
+            version_update_cmd = ""
+            if new_version:
+                version_update_cmd = f'echo "{new_version}" > "{version_file}"'
+            
             script_content = f"""#!/bin/bash
 echo "Aggiornamento WTF Modpack Launcher in corso..."
 sleep 3
 
 # Termina eventuali processi del launcher
-pkill -f "main.py" 2>/dev/null
+pkill -f "{os.path.basename(current_exe_path)}" 2>/dev/null
 pkill -f "WTF_Modpack_Launcher" 2>/dev/null
 
 # Attende che i processi si chiudano
-sleep 2
+sleep 3
 
-# Esegue il backup dei file correnti
-if [ -d "{self.launcher_dir}/backup" ]; then
-    rm -rf "{self.launcher_dir}/backup"
+# Crea backup dell'eseguibile corrente
+if [ -f "{current_exe_path}" ]; then
+    cp "{current_exe_path}" "{backup_exe}"
+    echo "Backup creato: {backup_exe}"
 fi
-mkdir -p "{self.launcher_dir}/backup"
-cp -r "{self.launcher_dir}"/* "{self.launcher_dir}/backup/" 2>/dev/null
 
-# Copia i nuovi file
-cp -rf "{extract_dir}"/* "{self.launcher_dir}/"
+# Sostituisce l'eseguibile
+cp "{new_exe_path}" "{current_exe_path}"
+if [ $? -ne 0 ]; then
+    echo "Errore nella sostituzione del file!"
+    if [ -f "{backup_exe}" ]; then
+        cp "{backup_exe}" "{current_exe_path}"
+        echo "Backup ripristinato"
+    fi
+    exit 1
+fi
+
+# Rende eseguibile il nuovo file
+chmod +x "{current_exe_path}"
+
+# Aggiorna il file di versione
+{version_update_cmd}
+
+echo "Aggiornamento completato con successo!"
 
 # Riavvia il launcher
-if [ -f "{self.launcher_dir}/WTF_Modpack_Launcher" ]; then
-    "{self.launcher_dir}/WTF_Modpack_Launcher" &
-elif [ -f "{self.launcher_dir}/main.py" ]; then
-    python3 "{self.launcher_dir}/main.py" &
-fi
+"{current_exe_path}" &
 
 # Pulisce i file temporanei
 sleep 5
-rm -rf "{self.temp_dir}"
+if [ -f "{backup_exe}" ]; then
+    rm "{backup_exe}"
+fi
+rm -rf "{self.temp_dir}" 2>/dev/null
 
 echo "Aggiornamento completato!"
 rm "$0"
@@ -358,8 +426,12 @@ Vuoi scaricare e installare l'aggiornamento ora?
             
             update_file = self.download_update(download_url, progress_callback)
             
-            # Installa l'aggiornamento
-            self.extract_and_install(update_file)
+            # Installa l'aggiornamento (gestisce sia .exe che .zip)
+            if update_file.lower().endswith('.exe'):
+                self.install_update(update_file, update_info['version'])
+            else:
+                # Fallback per file zip (mantiene la compatibilità)
+                self.extract_and_install_zip(update_file)
             
             # Chiude il launcher corrente
             messagebox.showinfo(
@@ -400,6 +472,153 @@ Vuoi scaricare e installare l'aggiornamento ora?
         thread.start()
         return thread
 
+    def extract_and_install_zip(self, update_file):
+        """Estrae e installa l'aggiornamento da un file zip (fallback)"""
+        try:
+            print("📦 Estrazione aggiornamento da file zip...")
+            
+            # Crea una directory temporanea per l'estrazione
+            extract_dir = os.path.join(self.temp_dir, "update_extract")
+            os.makedirs(extract_dir, exist_ok=True)
+            
+            # Estrae il file
+            with ZipFile(update_file, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+            
+            print("🔄 Installazione aggiornamento...")
+            
+            # Cerca l'eseguibile principale nel contenuto estratto
+            main_exe = None
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    if file.lower() in ['wtf_modpack_launcher.exe', 'main.exe', 'launcher.exe']:
+                        main_exe = os.path.join(root, file)
+                        break
+                if main_exe:
+                    break
+            
+            if main_exe:
+                # Se trova un eseguibile, usa il metodo di sostituzione diretta
+                current_exe = self.get_current_executable()
+                if current_exe:
+                    update_script = self.create_exe_update_script(main_exe, current_exe)
+                else:
+                    raise Exception("Impossibile determinare l'eseguibile corrente")
+            else:
+                # Altrimenti usa il metodo di copia completa
+                update_script = self.create_full_update_script(extract_dir)
+            
+            print("🚀 Avvio processo di aggiornamento...")
+            
+            # Esegue lo script di aggiornamento e chiude il launcher
+            if platform.system() == 'Windows':
+                subprocess.Popen([update_script], shell=True)
+            else:
+                subprocess.Popen(['bash', update_script])
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Errore durante l'installazione da zip: {e}")
+            raise
+
+    def create_full_update_script(self, extract_dir):
+        """Crea uno script per aggiornamento completo (per file zip)"""
+        if platform.system() == 'Windows':
+            script_path = os.path.join(self.temp_dir, "update_launcher_full.bat")
+            script_content = f"""@echo off
+echo Aggiornamento WTF Modpack Launcher in corso...
+timeout /t 3 /nobreak > nul
+
+REM Termina eventuali processi del launcher
+taskkill /f /im "WTF_Modpack_Launcher.exe" 2>nul
+taskkill /f /im "main.exe" 2>nul
+taskkill /f /im "python.exe" 2>nul
+
+REM Attende che i processi si chiudano
+timeout /t 2 /nobreak > nul
+
+REM Esegue il backup dei file correnti
+if exist "{self.launcher_dir}\\backup" rmdir /s /q "{self.launcher_dir}\\backup"
+mkdir "{self.launcher_dir}\\backup"
+xcopy "{self.launcher_dir}\\*" "{self.launcher_dir}\\backup\\" /e /i /y 2>nul
+
+REM Copia i nuovi file
+xcopy "{extract_dir}\\*" "{self.launcher_dir}\\" /e /i /y
+
+REM Riavvia il launcher
+if exist "{self.launcher_dir}\\WTF_Modpack_Launcher.exe" (
+    start "" "{self.launcher_dir}\\WTF_Modpack_Launcher.exe"
+) else if exist "{self.launcher_dir}\\main.exe" (
+    start "" "{self.launcher_dir}\\main.exe"
+) else if exist "{self.launcher_dir}\\main.py" (
+    start "" python "{self.launcher_dir}\\main.py"
+)
+
+REM Pulisce i file temporanei
+timeout /t 5 /nobreak > nul
+rmdir /s /q "{self.temp_dir}" 2>nul
+
+echo Aggiornamento completato!
+del "%~f0"
+"""
+        else:
+            script_path = os.path.join(self.temp_dir, "update_launcher_full.sh")
+            script_content = f"""#!/bin/bash
+echo "Aggiornamento WTF Modpack Launcher in corso..."
+sleep 3
+
+# Termina eventuali processi del launcher
+pkill -f "main.py" 2>/dev/null
+pkill -f "WTF_Modpack_Launcher" 2>/dev/null
+
+# Attende che i processi si chiudano
+sleep 2
+
+# Esegue il backup dei file correnti
+if [ -d "{self.launcher_dir}/backup" ]; then
+    rm -rf "{self.launcher_dir}/backup"
+fi
+mkdir -p "{self.launcher_dir}/backup"
+cp -r "{self.launcher_dir}"/* "{self.launcher_dir}/backup/" 2>/dev/null
+
+# Copia i nuovi file
+cp -rf "{extract_dir}"/* "{self.launcher_dir}/"
+
+# Riavvia il launcher
+if [ -f "{self.launcher_dir}/WTF_Modpack_Launcher" ]; then
+    chmod +x "{self.launcher_dir}/WTF_Modpack_Launcher"
+    "{self.launcher_dir}/WTF_Modpack_Launcher" &
+elif [ -f "{self.launcher_dir}/main.py" ]; then
+    python3 "{self.launcher_dir}/main.py" &
+fi
+
+# Pulisce i file temporanei
+sleep 5
+rm -rf "{self.temp_dir}"
+
+echo "Aggiornamento completato!"
+rm "$0"
+"""
+        
+        with open(script_path, 'w', encoding='utf-8') as f:
+            f.write(script_content)
+        
+        # Rende eseguibile lo script su sistemi Unix
+        if platform.system() != 'Windows':
+            os.chmod(script_path, 0o755)
+        
+        return script_path
+
+    def update_version_file(self, new_version):
+        """Aggiorna il file launcher_version.txt con la nuova versione"""
+        try:
+            version_file = os.path.join(self.launcher_dir, "launcher_version.txt")
+            with open(version_file, 'w', encoding='utf-8') as f:
+                f.write(new_version)
+            print(f"✅ File versione aggiornato: {new_version}")
+        except Exception as e:
+            print(f"⚠️ Errore nell'aggiornamento del file versione: {e}")
 
 def main():
     """Funzione principale per test standalone"""
