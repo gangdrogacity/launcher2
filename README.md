@@ -1,173 +1,349 @@
-[![justforfunnoreally.dev badge](https://img.shields.io/badge/justforfunnoreally-dev-9ff)](https://justforfunnoreally.dev)
+# WTF Modpack Launcher
 
-## Stargazers over time
-[![Stargazers over time](https://starchart.cc/shasankp000/PyCraft.svg?variant=adaptive)](https://starchart.cc/shasankp000/PyCraft)
+Un launcher moderno per il WTF Modpack di Minecraft 1.20.1 con Forge.
+
+## 🚀 Caratteristiche
+
+- ✅ Installazione automatica di Minecraft Forge 1.20.1-47.3.33
+- 📦 Download e installazione automatica del WTF Modpack
+- 🔄 Controllo aggiornamenti del modpack
+- 🎮 Avvio rapido di Minecraft con modalità offline
+- ⚙️ Gestione memoria RAM ottimizzata
+- 🔧 Strumenti di riparazione e verifica
+- 💾 Interfaccia grafica moderna con ttkbootstrap
+
+## 📋 Requisiti
+
+- **Sistema Operativo**: Windows 10/11 o Linux
+- **RAM**: Minimo 4GB (8GB consigliati)
+- **Java**: Java 17 o superiore
+- **Connessione Internet**: Richiesta per installazione e aggiornamenti
+- **Spazio Disco**: ~2GB per il modpack completo
+
+## 🔧 Installazione
+
+### Opzione 1: Eseguibile Precompilato
+1. Scarica `WTF_Modpack_Launcher.exe` dalla sezione Releases
+2. Esegui il launcher
+3. Segui la procedura guidata
+
+### Opzione 2: Da Codice Sorgente
+1. Clona il repository:
+   ```bash
+   git clone https://github.com/your-repo/wtf-modpack-launcher.git
+   cd wtf-modpack-launcher
+   ```
+
+2. Installa le dipendenze:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Avvia il launcher:
+   ```bash
+   python main.py
+   ```
+
+## 🏗️ Compilazione
+
+Per creare un eseguibile:
+
+1. Installa PyInstaller:
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. Compila il launcher:
+   ```bash
+   compile.bat
+   ```
+
+L'eseguibile sarà disponibile in `dist/WTF_Modpack_Launcher.exe`
+
+## 🎮 Utilizzo
+
+1. **Prima configurazione**: Inserisci il tuo username per la modalità offline
+2. **Installazione**: Clicca "Installa WTF Modpack" per scaricare automaticamente tutto
+3. **Gioco**: Clicca "Gioca Ora!" per avviare Minecraft con il modpack
+4. **Aggiornamenti**: Il launcher controllerà automaticamente gli aggiornamenti
+
+## ⚙️ Configurazione
+
+### Memoria RAM
+- **Minimo**: 4GB (richiesto per il modpack)
+- **Consigliato**: 6-8GB per prestazioni ottimali
+- Configurabile nelle impostazioni del launcher
+
+### Directory
+- **Minecraft**: `.minecraft` (creata automaticamente)
+- **Mod**: `.minecraft/mods` (gestite automaticamente)
+- **Configurazioni**: `settings.json`
+
+## 🔧 Risoluzione Problemi
+
+### Errori Comuni
+
+**"Java non trovato"**
+- Installa Java 17+ da [Adoptium](https://adoptium.net/)
+- Su Windows, il launcher cerca Java in: `C:\Program Files\BellSoft\LibericaJDK-17\bin\java`
+
+**"Errore download modpack"**
+- Verifica la connessione Internet
+- Controlla che GitHub sia accessibile
+- Riprova l'installazione
+
+**"Minecraft non si avvia"**
+- Verifica che ci sia abbastanza RAM disponibile
+- Controlla che Forge sia installato correttamente
+- Usa il pulsante "Ripara" nel launcher
+
+### Log e Debug
+- I log di Minecraft sono in `.minecraft/logs/`
+- Apri la cartella con il pulsante "Apri Logs" nelle impostazioni
+
+## 📁 Struttura File
+
+```
+wtf-modpack-launcher/
+├── main.py              # Codice principale del launcher
+├── main.spec            # Configurazione PyInstaller
+├── requirements.txt     # Dipendenze Python
+├── settings.json        # Configurazioni utente (generato automaticamente)
+├── compile.bat          # Script di compilazione
+├── icon.ico            # Icona del launcher
+├── fonts/              # Font personalizzati
+│   ├── GALS.ttf
+│   ├── GALSB.ttf
+│   ├── Minecraft.ttf
+│   └── Sunshiney-Regular.ttf
+└── .minecraft/         # Directory Minecraft (creata automaticamente)
+    ├── versions/       # Versioni Minecraft e Forge
+    ├── mods/          # Mod del WTF Modpack
+    └── logs/          # Log di gioco
+```
+
+## 🤝 Contribuire
+
+1. Fork del repository
+2. Crea un branch per la tua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit delle modifiche (`git commit -m 'Add some AmazingFeature'`)
+4. Push al branch (`git push origin feature/AmazingFeature`)
+5. Apri una Pull Request
+
+## 📄 Licenza
+
+Questo progetto è sotto licenza MIT. Vedi il file `LICENSE` per i dettagli.
+
+## 🎯 WTF Modpack
+
+Il WTF Modpack è una collezione curata di mod per Minecraft 1.20.1 che include:
+- Mod di ottimizzazione prestazioni
+- Nuovi biomi e strutture
+- Meccaniche di gioco migliorate
+- Interfaccia utente migliorata
+
+Per maggiori informazioni sul modpack, visita il [repository ufficiale](https://github.com/jamnaga/wtf-modpack).
+
+## 📞 Supporto
+
+- **Issues**: Usa la sezione Issues di GitHub per bug e richieste
+- **Documentazione**: Questo README e i commenti nel codice
+- **Community**: Unisciti al server Discord del WTF Modpack
 
 ---
 
-# Project restarted 
-  > Contributors to this project will really be appreciated.
-  
-  > Update: 30/10/22. This launcher is being rewritten in rust at the moment, will make up for all that this launcher lacks.
-  
-  > However this launcher will still have support if anyone wants to keep using it.
+**Nota**: Questo launcher è progettato specificamente per il WTF Modpack e la modalità offline. Per giocare online con account Premium, usa il launcher ufficiale di Minecraft.
 
-  > Update 13/6/22. Updated version of this launcher : 
-https://github.com/v-pun215/eClient
+## 📋 Caratteristiche
 
-# Like my work? Buy me a coffee
+- ✅ **Installazione Automatica**: Scarica e installa automaticamente Minecraft Forge 1.20.1-47.3.33
+- 📦 **Gestione Modpack**: Download automatico delle mod dal repository GitHub
+- 🔄 **Aggiornamenti**: Controllo automatico degli aggiornamenti del modpack
+- 💾 **Gestione RAM**: Configurazione della memoria allocata (minimo 4GB)
+- 🎮 **Modalità Offline**: Gioca senza account Minecraft Premium
+- 🔧 **Riparazione**: Sistema di verifica e riparazione automatica
+- 🎨 **Interfaccia Moderna**: GUI user-friendly con tema scuro
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/shasankp000)
+---
 
-So that I don't have to ask my mom for pocket money
+## 🚀 Come Iniziare
 
-# New subreddit!
-  > The project has now a dedicated subreddit! https://www.reddit.com/r/PyCraftLauncher
+### 1. **Primi Passi**
+   - Avvia `WTF_Modpack_Launcher.exe`
+   - Il launcher verificherà automaticamente la connessione Internet
+   - Alla prima apertura vedrai l'interfaccia principale
 
-# Project Info
-  >A Minecraft launcher made in python.
+### 2. **Installazione Modpack**
+   - Clicca su "📦 Installa WTF Modpack"
+   - Conferma l'installazione nella finestra di dialogo
+   - Attendi il completamento (3-10 minuti a seconda della connessione)
 
-  >This Launcher aims to be the best free minecraft launcher for Linux primarily. Porting to other platforms will be done later.
+### 3. **Configurazione Account**
+   - Al primo avvio di Minecraft, inserisci un username
+   - L'username può essere qualsiasi nome (modalità offline)
+   - Evita spazi e caratteri speciali
 
-  >This launcher is not illegal as all files are downloaded from libraries.minecraft.net.
+### 4. **Gioca!**
+   - Clicca "🎮 Gioca Ora!" per avviare Minecraft
+   - Il primo avvio può richiedere alcuni minuti
+   - Il launcher monitorerà lo stato del gioco
 
-  >Piracy concerned rich people feel free to press the back button on the browser :)
-  
+---
 
-# Changelog
+## ⚙️ Impostazioni
 
-  ![Home Tab](img/pycraft1.png)
-  ![Installations Tab](img/pycraft2.png)
-  ![Settings Tab](img/pycraft3.png)
-  ![Additional Settings Tab](img/pycraft4.png)
+Accedi alle impostazioni tramite il pulsante "⚙️ Impostazioni":
 
+### 👤 **Account**
+- Modifica username
+- Visualizza informazioni account
 
-  >v1.04-beta-3 
-  
-  > To use the latest version, it's best to clone the project and then run it, since I fail to keep the releases updated in the release section in tandem with 
-  the main code folders in the .git
-  >
-  > Added a modinstaller where users will have to enter the modname(in lowercase), modloader(in lowercase) and gameversion
-  >
-  > This modinstaller only downloads "stable" version of the mods from modrinth. If the stable version doesn't exist then the mod won't be downloaded( non stable versions can be added manually in the mods folder)
-  >
-  > Yes, minecraft 1.19 and all subsequent updates are supported.
-  >
-  > Fixed issue of being unable to play downloaded versions offline without internet.
-  >
-  > Fixed all bugs on Windows.
-  >
-  > Rewritten the ram allocation alogrithm, jvm no longer assigns ram by rounding off to the nearest GB. What you select on the slider is what you get.
-  >
-  > Fixed issue of cracked login in Fabric. Players using cracked mode will now have a permanent UUID generated by the launcher.
-  >
-  > Changed GUI totally.
-  >
-  > Ely_by login mode is now optional if customskinloader is used.
-  > 
-  > GUI changes(Merged all 3 files into one main launcher).
-  > 
-  > Added a new download mode named (fps clients). This mode will detect custom clients by placing them in the versions folder. I have chosen Ares     client as the candidate for now. This is not fully implemented yet so work in progress
-  > 
-  > Fps boost is still(sadly) in beta testing mode.
-  > 
-  > Fixed the download window.
-  > 
-  > There is a font folder now containing all fonts the launcher uses. There is no copyright on these fonts, and can be used anywhere. Users are needed
-  > to install these fonts or else the launcher will not look as it is intended to look.
-  > 
-  > Added a "Bypass Ram limiter" option which will override Pycraft's defualt settings to allocate only upto 50% of system ram to minecraft. With this
-  > option enabled people can set ram more than 50% of the total ram, if needed. 
+### 💾 **Memoria RAM**
+- Configura RAM allocata (minimo 4GB)
+- Visualizza RAM sistema disponibile
+- Raccomandazioni automatiche
 
-# Planned Updates
+### 💻 **Sistema**
+- Informazioni sistema operativo
+- Directory Minecraft
+- Stato connessione
+- Versioni installate
 
-  >Deal with the GUI once and for all
-  >
-  >Add a new news page on the launcher
-  >
-  >Add a modinstaller
-  >
-  >Make a few fps boosting modpacks(tested on my pc gives around 1200 fps without shaders)
-  >
-  >Rename cracked mode to something better
+### 🔧 **Strumenti**
+- Apri cartella Minecraft
+- Visualizza log di gioco
+- Reset impostazioni
 
-# Installation script changes
+---
 
-  > Added installation support for java 17 (windows and debian based linux). The launcher only supports this variant of java 17 now. 
-  > 
-  > Added python installation support (windows and debian based linux. Use this only if you don't    
-    have python installed by defualt). 
+## 🔧 Risoluzione Problemi
 
-  
-# Privacy updates
+### **Minecraft non si avvia**
+1. Verifica di avere Java installato
+2. Controlla la RAM allocata (minimo 4GB)
+3. Usa il pulsante "🔧 Ripara" per verificare l'installazione
+4. Controlla i log in `.minecraft/logs/latest.log`
 
-  > Passwords are no longer stored in the launcher. Only player uuid, accessToken from auth servers  
-    and clientToken is randomly generated on each run, for ely_by logins.
-    
-  > Players using cracked mode will now have a permanent UUID generated by the launcher on first run in cracked mode
+### **Errori di download**
+1. Verifica la connessione Internet
+2. Controlla che GitHub sia accessibile
+3. Riprova dopo qualche minuto
+4. Usa una connessione stabile per i download
 
+### **Prestazioni scarse**
+1. Aumenta la RAM allocata nelle impostazioni
+2. Chiudi altri programmi durante il gioco
+3. Verifica che il PC soddisfi i requisiti minimi
 
+### **Problemi di avvio del launcher**
+1. Esegui come amministratore
+2. Controlla l'antivirus (potrebbe bloccare il launcher)
+3. Verifica di avere i permessi di scrittura nella cartella
 
-# Features
-  >This launcher is based on the Tkinter and minecraft_launcher_lib. It offers mojang login and cracked login.
-  
-  >Includes a special FPS boost option(old releases).
-  
-  >Includes an in-built toggleable vpn, running through torsocks(Linux) (old releases)
-  
-  >To run Tor on windows as a service : https://deepdarkweb.github.io/how-to-install-tor-on-windows-without-the-tor-browser-running-tutorial/
+---
 
-  >**Fps boost has been shifted to beta testing mode. That is , it has been tested with java 16.It is still being tested. Feedback would be most graciously appreciated.**
+## 📊 Requisiti di Sistema
 
-  
-# Installation
-  >Run python install.py or python3 install.py(if on linux)
- 
+### **Minimi**
+- **OS**: Windows 10/11 (64-bit)
+- **RAM**: 8GB (4GB per Minecraft + 4GB per il sistema)
+- **Storage**: 5GB liberi per il modpack
+- **Internet**: Connessione stabile per download e aggiornamenti
 
-  >Then run python pycraft_gui.py or python3 pycraft_gui.py
+### **Raccomandati**
+- **OS**: Windows 11 (64-bit)
+- **RAM**: 16GB (8GB per Minecraft + 8GB per il sistema)
+- **Storage**: 10GB liberi per mod aggiuntive
+- **Internet**: Connessione veloce per download rapidi
 
-  >Before starting minecraft, do increase or decrease the ram in the settings, so as to update it in the settings file. Or else an error will pop concerning the         JVM.
+---
 
-  > I will patch this in future releases.
+## 📁 Struttura File
 
-**IMPORTANT**
-  >After stopping a download, please press CTRL+C twice. (This will close the launcher as well.)
-  >For people who have worked with python, it's an issue where i am unable to close the download thread directly at once by raising the KeyboardInterrupt exception.
+```
+WTF_Modpack_Launcher_Release/
+├── WTF_Modpack_Launcher.exe    # Launcher principale
+├── README_LAUNCHER.md          # Questo file
+├── wtf_modpack_config.json     # Configurazione modpack
+├── img/                        # Risorse grafiche
+├── fonts/                      # Font personalizzati
+└── config/                     # Configurazioni
+```
 
-  >If download fails, you may need to use a vpn(windows) or enable tor in settings(linux)
+Dopo il primo avvio verrà creata anche:
+```
+.minecraft/                     # Directory Minecraft
+├── versions/                   # Versioni Minecraft e Forge
+├── mods/                       # Mod del modpack
+├── saves/                      # Mondi salvati
+├── logs/                       # Log di gioco
+└── settings.json               # Impostazioni launcher
+```
 
-  >**Any changes in the settings (be it tor, fps boost, ram change, directory change) will require a launcher reboot(not to be confused with system reboot),        to take effect.**
+---
 
-# Pycraft skins system
-  > Pycraft has 3 accounts mode. The mojang account mode(microsoft accounts support coming soon),     
-    cracked mode and ely_by login system. For the majority of the people who don't know what that is, 
-    it is an alternative minecraft service used by Tlauncher as well, only that their security is better. For this mode, you need to create an account at https://ely.by (2 factor authentication not yet supported), and then enter your username and password and start. Supported for all modes, vanilla, forge and fabric.
+## 🔄 Aggiornamenti
 
-   > Ely_by skins are not viewable on all servers, only in singleplayer mode and those servers which  
-     use it's services. However to view your skin on all servers you can use a client side mod, https://www.curseforge.com/minecraft/mc-mods/customskinloader/ , usage instructions are given on the page. Officially supported till 1.16.5 but there are release versions for the mod for 1.17 in the files section. Just run this mod one time, close minecraft, go to .minecraft/CustomSkinLoader/CustomSkinLoader.json, open it with any text editor
+Il launcher controlla automaticamente gli aggiornamenti:
+- **All'avvio**: Verifica aggiornamenti del modpack
+- **Manuale**: Pulsante "🔄 Verifica Aggiornamenti"
+- **Automatico**: Notifica quando è disponibile una nuova versione
 
-   from the webiste : "- Q: How can I modify configurations of CustomSkinLoader?
+---
 
-   A: The config file is .minecraft/CustomSkinLoader/CustomSkinLoader.json . Unfortunately, there is no way to modify the CustomSkinLoader configuration file in    
-   the game currently, so you need to manually modify it by using a code editor (e.g. VSCode). However, we have a website to modify the configuration file online, 
-   you only need to import and modify your current configuration file."
+## 🎮 Modalità di Gioco
 
-   This mod supports: LittleSkin, BlessingSkin, Elyby, SkinMe, GlitchlessGames skins. Since ely_by is the most popular choice, you can go ahead with this mod.
+### **Offline (Predefinita)**
+- Non richiede account Minecraft Premium
+- Username personalizzabile
+- Ideale per gioco singolo e LAN
 
-   And yea this mod has no impact on physical resources, like ram and cpu(I used it a lot of times).
+### **Online (Account Premium)**
+- Per server online con autenticazione
+- Usa il launcher ufficiale Minecraft
+- Copia le mod dalla cartella `.minecraft/mods`
 
-# Why the whole vpn thingy?
-  >Sometimes mojang's server, libraries.minecraft.net is not available on some systems (especially for those living in Egypt). To fix this a vpn is used. Now the 
-   governement of Egypt has kinda cracked down on openvpn (thanks to one of my testers, i wouldn't have known about it otherwise.), so Tor is the best solution to      that.
+---
 
-# Coming soon:
-  >FunMc (my minecraft server's website).
-  
-  >New microsoft account login system as per the latest changes according to mojang in Minecraft: Java Edition
+## 🆘 Supporto
 
+### **Problemi Comuni**
+1. **"Java non trovato"**: Installa Java 17 o superiore
+2. **"RAM insufficiente"**: Aumenta RAM allocata nelle impostazioni
+3. **"Modpack non trovato"**: Verifica connessione Internet
+4. **"Launcher non si apre"**: Esegui come amministratore
 
-Below is a video stating how to use PyCraft Launcher(rip my trash pc -- i am still working on the fps boost)
+### **Log e Debug**
+- Log launcher: Console durante l'esecuzione
+- Log Minecraft: `.minecraft/logs/latest.log`
+- Impostazioni: `settings.json` nella directory launcher
 
-https://youtu.be/8TiDc-Z2MA0
+### **Reset Completo**
+Se tutto va storto:
+1. Chiudi Minecraft e launcher
+2. Elimina la cartella `.minecraft`
+3. Elimina `settings.json`
+4. Riavvia il launcher e reinstalla
 
+---
 
+## 📄 Informazioni Tecniche
+
+- **Versione Minecraft**: 1.20.1
+- **Versione Forge**: 47.3.33
+- **RAM Minima**: 4GB
+- **Linguaggio**: Python 3.x compilato
+- **GUI**: tkinter + ttkbootstrap
+- **Repository**: [jamnaga/wtf-modpack](https://github.com/jamnaga/wtf-modpack)
+
+---
+
+## 🎯 Note Finali
+
+Questo launcher è stato creato specificatamente per il WTF Modpack e ottimizzato per fornire la migliore esperienza di gioco possibile. 
+
+**Buon divertimento con il WTF Modpack! 🎮**
+
+---
+
+*Launcher sviluppato nel 2025 • Versione 1.0*
