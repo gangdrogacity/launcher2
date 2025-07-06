@@ -394,16 +394,6 @@ class WTFModpackLauncher():
         )
         self.settings_button.place(x=655, y=280, width=120, height=45)
 
-        # Launcher update button
-        self.update_launcher_button = Button(
-            self.window,
-            text="🚀 Aggiorna Launcher",
-            command=self.check_launcher_updates_manual,
-            bootstyle="info",
-            width=15
-        )
-        self.update_launcher_button.place(x=790, y=340, width=150, height=35)
-
         # Repair button (only show if modpack is installed)
         if wtf_modpack_installed:
             self.repair_button = Button(
@@ -1464,27 +1454,12 @@ class WTFModpackLauncher():
             tk.Label(update_frame, text=f"Versione corrente: {current_version}", 
                     bg="#2d2d2d", fg="white", font=("Arial", 10)).pack(pady=5)
             
-            # Update check button
-            update_button_frame = tk.Frame(update_frame, bg="#2d2d2d")
-            update_button_frame.pack(pady=10)
+            # Auto-update info
+            tk.Label(update_frame, text="Gli aggiornamenti del launcher sono completamente automatici", 
+                    bg="#2d2d2d", fg="#15d38f", font=("Arial", 10)).pack(pady=5)
             
-            def manual_update_check():
-                settings_window.destroy()
-                self.check_launcher_updates_manual()
-            
-            Button(update_button_frame, text="🔍 Controlla Aggiornamenti", 
-                   command=manual_update_check, bootstyle="info-outline", width=20).pack(side="left", padx=5)
-            
-            # Auto-update settings
-            auto_update_frame = tk.Frame(update_frame, bg="#2d2d2d")
-            auto_update_frame.pack(pady=5)
-            
-            auto_update_var = tk.BooleanVar(value=data.get("auto_update_launcher", True))
-            auto_update_check = tk.Checkbutton(auto_update_frame, text="Controlla aggiornamenti automaticamente",
-                                             variable=auto_update_var, bg="#2d2d2d", fg="white",
-                                             selectcolor="#2d2d2d", activebackground="#2d2d2d",
-                                             activeforeground="white", font=("Arial", 10))
-            auto_update_check.pack()
+            tk.Label(update_frame, text="Il launcher si aggiornerà automaticamente all'avvio quando disponibile", 
+                    bg="#2d2d2d", fg="white", font=("Arial", 9)).pack(pady=5)
             
             tk.Label(update_frame, text="", bg="#2d2d2d").pack(pady=5)  # Spacer
         
@@ -1553,17 +1528,14 @@ class WTFModpackLauncher():
                 data["allocated_ram"] = allocated_ram
                 data["setting-info"][0]["allocated_ram_selected"] = allocated_ram
                 
-                # Update launcher update settings if available
-                if self.launcher_updater and 'auto_update_var' in locals():
-                    data["auto_update_launcher"] = auto_update_var.get()
+                # Auto-update is always enabled now
+                data["auto_update_launcher"] = True
                 
                 with open("settings.json", "w") as f:
                     json.dump(data, f, indent=4)
                 
                 settings_summary = f"• RAM allocata: {ram_value}GB\n• Username: {username if username else 'Non configurato'}"
-                if self.launcher_updater and 'auto_update_var' in locals():
-                    auto_update_status = "Abilitati" if auto_update_var.get() else "Disabilitati"
-                    settings_summary += f"\n• Aggiornamenti automatici: {auto_update_status}"
+                settings_summary += f"\n• Aggiornamenti automatici: Sempre abilitati"
                 
                 tk.messagebox.showinfo("✅ Impostazioni Salvate", 
                                      f"Impostazioni salvate con successo!\n\n{settings_summary}\n\n" +
@@ -1812,14 +1784,14 @@ class WTFModpackLauncher():
             return False
 
     def check_launcher_updates_async(self):
-        """Check for launcher updates asynchronously on startup"""
+        """Check for launcher updates asynchronously on startup and auto-update if available"""
         if not self.launcher_updater:
             return
         
         def update_callback(update_info):
             if update_info.get('available', False):
-                # Show notification in the GUI
-                self.window.after(0, lambda: self.show_launcher_update_notification(update_info))
+                # Auto-update directly without notification
+                self.window.after(0, lambda: self.handle_launcher_update_available(update_info))
         
         self.launcher_updater.check_updates_async(update_callback)
     
@@ -1840,91 +1812,22 @@ class WTFModpackLauncher():
         if auto_update_launcher:
             self.window.after(3600000, periodic_check)  # First check in 1 hour
     
-    def check_launcher_updates_manual(self):
-        """Check for launcher updates manually (called by button)"""
-        if not self.launcher_updater:
-            showinfo("Aggiornamento Launcher", "Funzionalità di aggiornamento non disponibile.")
-            return
-        
-        # Show progress in GUI
-        self.update_gui_status(
-            "🔍 Controllo Aggiornamenti Launcher...",
-            "Verificando se ci sono nuove versioni del launcher...",
-            "Connessione al repository GitHub...",
-            True
-        )
-        
-        def check_thread():
-            try:
-                update_info = self.launcher_updater.check_for_updates()
-                
-                if update_info.get('available', False):
-                    # Update available - show in main thread
-                    self.window.after(0, lambda: self.handle_launcher_update_available(update_info))
-                else:
-                    # No updates - show message
-                    self.window.after(0, lambda: self.handle_no_launcher_updates(update_info))
-                    
-            except Exception as e:
-                error_msg = str(e)
-                self.window.after(0, lambda: self.handle_launcher_update_error(error_msg))
-        
-        Thread(target=check_thread, daemon=True).start()
-    
-    def show_launcher_update_notification(self, update_info):
-        """Show a non-intrusive notification about launcher update"""
-        try:
-            # Update the launcher update button to show notification
-            self.update_launcher_button.configure(
-                text="🚀 Aggiornamento Disponibile!",
-                bootstyle="warning"
-            )
-            
-            # Show a status message
-            version = update_info.get('version', 'Sconosciuta')
-            size = self.launcher_updater.format_size(update_info.get('size', 0))
-            
-            self.update_gui_status(
-                f"🚀 Aggiornamento Launcher Disponibile!",
-                f"Versione {version} disponibile (dimensione: {size})",
-                "Clicca su 'Aggiorna Launcher' per installare"
-            )
-            
-        except Exception as e:
-            print(f"Errore nel mostrare notifica aggiornamento: {e}")
-    
     def handle_launcher_update_available(self, update_info):
-        """Handle when launcher update is available"""
+        """Handle when launcher update is available - automatically start update"""
         try:
             self.update_gui_status(
-                "🎉 Aggiornamento Launcher Disponibile!",
+                "🚀 Aggiornamento Launcher Automatico...",
                 f"Nuova versione {update_info.get('version', 'Sconosciuta')} trovata",
-                "Pronto per l'installazione"
+                "Avvio automatico aggiornamento in corso..."
             )
             
-            # Start the update process
+            print(f"🚀 Aggiornamento automatico del launcher alla versione {update_info.get('version', 'Sconosciuta')}")
+            
+            # Start the update process automatically
             self.start_launcher_update(update_info)
             
         except Exception as e:
             print(f"Errore nel gestire aggiornamento disponibile: {e}")
-    
-    def handle_no_launcher_updates(self, update_info):
-        """Handle when no launcher updates are available"""
-        try:
-            self.update_gui_status(
-                "✅ Launcher Aggiornato",
-                "Stai utilizzando la versione più recente del launcher",
-                f"Versione corrente: {self.launcher_updater.current_version}"
-            )
-            
-            showinfo(
-                "Launcher Aggiornato",
-                f"✅ Stai già utilizzando la versione più recente del launcher!\n\n" +
-                f"📋 Versione corrente: {self.launcher_updater.current_version}"
-            )
-            
-        except Exception as e:
-            print(f"Errore nel gestire nessun aggiornamento: {e}")
     
     def handle_launcher_update_error(self, error_msg):
         """Handle launcher update errors"""
@@ -1935,16 +1838,16 @@ class WTFModpackLauncher():
                 "Controlla la connessione Internet"
             )
             
-            showerror(
-                "Errore Aggiornamento",
-                f"❌ Impossibile controllare gli aggiornamenti del launcher:\n\n{error_msg}"
-            )
+            print(f"❌ Errore aggiornamento launcher: {error_msg}")
+            
+        except Exception as e:
+            print(f"Errore nel gestire errore aggiornamento: {e}")
             
         except Exception as e:
             print(f"Errore nel gestire errore aggiornamento: {e}")
     
     def start_launcher_update(self, update_info):
-        """Start the launcher update process"""
+        """Start the launcher update process automatically"""
         try:
             # Show progress
             self.update_gui_status(
@@ -1965,7 +1868,8 @@ class WTFModpackLauncher():
             
             def update_thread():
                 try:
-                    success = self.launcher_updater.update_launcher(progress_callback)
+                    # Use auto_mode=True to skip confirmation prompts
+                    success = self.launcher_updater.update_launcher(progress_callback, auto_mode=True)
                     
                     if success:
                         # Update successful - launcher will restart
@@ -1982,7 +1886,7 @@ class WTFModpackLauncher():
                         self.window.after(0, lambda: self.update_gui_status(
                             "❌ Aggiornamento Fallito",
                             "Impossibile completare l'aggiornamento del launcher",
-                            "Riprova più tardi"
+                            "Riprova riavviando il launcher"
                         ))
                         
                 except Exception as e:

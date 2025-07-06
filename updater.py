@@ -396,32 +396,37 @@ Vuoi scaricare e installare l'aggiornamento ora?
             print(f"Errore nel mostrare il prompt di aggiornamento: {e}")
             return False
     
-    def update_launcher(self, progress_callback=None):
+    def update_launcher(self, progress_callback=None, auto_mode=True):
         """Processo completo di aggiornamento del launcher"""
         try:
             # Controlla aggiornamenti
             update_info = self.check_for_updates()
             
             if not update_info['available']:
-                if 'error' in update_info:
+                if 'error' in update_info and not auto_mode:
                     messagebox.showerror(
                         "Errore",
                         f"Impossibile controllare gli aggiornamenti:\n{update_info['error']}"
                     )
                 return False
             
-            # Chiede conferma all'utente
-            if not self.prompt_for_update(update_info):
-                print("Aggiornamento annullato dall'utente")
-                return False
+            # In modalità automatica, salta la richiesta di conferma
+            if not auto_mode:
+                # Chiede conferma all'utente solo in modalità manuale
+                if not self.prompt_for_update(update_info):
+                    print("Aggiornamento annullato dall'utente")
+                    return False
+            else:
+                print(f"🚀 Aggiornamento automatico del launcher alla versione {update_info['version']}")
             
             # Scarica l'aggiornamento
             download_url = update_info['download_url']
             if not download_url:
-                messagebox.showerror(
-                    "Errore",
-                    "Impossibile trovare il file di aggiornamento per il tuo sistema operativo."
-                )
+                if not auto_mode:
+                    messagebox.showerror(
+                        "Errore",
+                        "Impossibile trovare il file di aggiornamento per il tuo sistema operativo."
+                    )
                 return False
             
             update_file = self.download_update(download_url, progress_callback)
@@ -433,20 +438,23 @@ Vuoi scaricare e installare l'aggiornamento ora?
                 # Fallback per file zip (mantiene la compatibilità)
                 self.extract_and_install_zip(update_file)
             
-            # Chiude il launcher corrente
-            messagebox.showinfo(
-                "Aggiornamento",
-                "Aggiornamento scaricato! Il launcher verrà riavviato..."
-            )
+            # In modalità automatica, non mostra messaggi
+            if not auto_mode:
+                # Chiude il launcher corrente
+                messagebox.showinfo(
+                    "Aggiornamento",
+                    "Aggiornamento scaricato! Il launcher verrà riavviato..."
+                )
             
             return True
             
         except Exception as e:
             print(f"❌ Errore durante l'aggiornamento: {e}")
-            messagebox.showerror(
-                "Errore Aggiornamento",
-                f"Si è verificato un errore durante l'aggiornamento:\n{str(e)}"
-            )
+            if not auto_mode:
+                messagebox.showerror(
+                    "Errore Aggiornamento",
+                    f"Si è verificato un errore durante l'aggiornamento:\n{str(e)}"
+                )
             return False
         finally:
             # Pulisce i file temporanei in caso di errore
