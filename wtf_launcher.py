@@ -262,8 +262,29 @@ class WTFModpackLauncher():
         self.minecraft_process = None
         self.is_minecraft_running = False
 
+        # Set icon (handle PyInstaller bundle)
         if os_name.startswith("Windows"):
-            self.window.iconbitmap(r"{}/icon.ico".format(currn_dir))
+            try:
+                # Function to get correct resource path for PyInstaller
+                def resource_path(relative_path):
+                    """ Get absolute path to resource, works for dev and for PyInstaller """
+                    try:
+                        # PyInstaller creates a temp folder and stores path in _MEIPASS
+                        base_path = sys._MEIPASS
+                    except Exception:
+                        base_path = os.path.abspath(".")
+                    return os.path.join(base_path, relative_path)
+                
+                # Try to find icon using resource_path function
+                icon_path = resource_path("icon.ico")
+                if os.path.exists(icon_path):
+                    self.window.iconbitmap(icon_path)
+                    print(f"✅ Icona caricata da: {icon_path}")
+                else:
+                    print(f"⚠️ Icona non trovata in: {icon_path}")
+            except Exception as e:
+                # Ignore icon errors, launcher will work without icon
+                print(f"⚠️ Impossibile caricare l'icona: {e}")
 
         self.setup_ui()
         

@@ -47,6 +47,7 @@ def build_executable():
         "--add-data=config;config",     # Includi cartella config
         "--add-data=README_WTF.md;.",   # Includi README
         "--add-data=requirements_wtf.txt;.",  # Includi requirements
+        "--add-data=icon.ico;.",        # Includi icona nel bundle
         "--hidden-import=tkinter",
         "--hidden-import=ttkbootstrap",
         "--hidden-import=minecraft_launcher_lib",

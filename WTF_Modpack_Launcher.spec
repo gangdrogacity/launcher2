@@ -1,21 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
-
-datas = [('img', 'img'), ('fonts', 'fonts'), ('config', 'config'), ('README_WTF.md', '.'), ('requirements_wtf.txt', '.')]
-binaries = []
-hiddenimports = ['tkinter', 'ttkbootstrap', 'minecraft_launcher_lib', 'requests', 'psutil', 'tkvideo']
-tmp_ret = collect_all('ttkbootstrap')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('minecraft_launcher_lib')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['wtf_launcher.py'],
     pathex=[],
-    binaries=binaries,
-    datas=datas,
-    hiddenimports=hiddenimports,
+    binaries=[],
+    datas=[('img', 'img'), ('fonts', 'fonts'), ('config', 'config'), ('README_WTF.md', '.'), ('requirements_wtf.txt', '.'), ('icon.ico', '.')],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
