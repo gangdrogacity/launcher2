@@ -5,6 +5,7 @@ from tkinter.messagebox import showerror, showinfo, showwarning, askquestion
 from tkinter.ttk import Progressbar, Frame, Label, Button
 
 import os
+import sys
 import subprocess
 import time
 import minecraft_launcher_lib
@@ -31,6 +32,15 @@ style.configure("TNotebook.Tab", foreground="#15d38f", background="#23272a", bor
 currn_dir = os.getcwd()
 mc_dir = r"{}/.minecraft".format(currn_dir)
 OS = platform.platform()
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 # WTF Modpack specific settings
 WTF_MODPACK_REPO = "https://github.com/jamnaga/wtf-modpack"
@@ -200,7 +210,14 @@ class WTFModpackLauncher():
         self.is_minecraft_running = False
 
         if os_name.startswith("Windows"):
-            self.window.iconbitmap(r"{}/icon.ico".format(currn_dir))
+            try:
+                icon_path = resource_path("icon.ico")
+                if os.path.exists(icon_path):
+                    self.window.iconbitmap(icon_path)
+                else:
+                    print(f"⚠️ Icona non trovata: {icon_path}")
+            except Exception as e:
+                print(f"⚠️ Impossibile caricare l'icona: {str(e)}")
 
         self.setup_ui()
         
@@ -1522,189 +1539,7 @@ class WTFModpackLauncher():
         Button(button_bottom_frame, text="❌ Chiudi", command=settings_window.destroy, 
                bootstyle="danger", width=10).pack(side="right")
 
-    def run(self):
-        """Start the launcher"""
-        self.window.mainloop()
 
-    def update_gui_status(self, main_status, detail_status="", progress_text="", show_progress=False):
-        """Update the GUI with detailed status information"""
-        self.status_label.config(text=main_status)
-        self.detail_label.config(text=detail_status)
-        self.progress_label.config(text=progress_text)
-        
-        if show_progress:
-            if not self.progress_bar.winfo_viewable():
-                self.progress_bar.place(x=200, y=340, width=600, height=20)
-                self.progress_bar.start()
-        else:
-            if self.progress_bar.winfo_viewable():
-                self.progress_bar.place_forget()
-                self.progress_bar.stop()
-        
-        self.window.update()
-
-    def update_modpack_status(self, installed=None, version=None):
-        """Update modpack status in the GUI"""
-        if installed is not None:
-            global wtf_modpack_installed
-            wtf_modpack_installed = installed
-            
-        if version is not None:
-            global wtf_modpack_version
-            wtf_modpack_version = version
-            
-        # Update version text
-        version_display = f"{wtf_modpack_version if wtf_modpack_version else 'Non Installato'}"
-        self.canvas.itemconfig(self.version_text, text=version_display)
-        
-        # Update status indicator
-        if wtf_modpack_installed:
-            status_text = "✅ Pronto per Giocare"
-            status_color = "#15d38f"
-            button_text = "🔄 Verifica Aggiornamenti"
-            button_style = "info"
-            play_text = self.get_play_button_text()
-            play_state = "normal"
-            
-            # Show repair button if modpack is installed
-            if not hasattr(self, 'repair_button'):
-                self.repair_button = Button(
-                    self.window,
-                    text="🔧 Ripara",
-                    command=self.verify_and_repair_installation,
-                    bootstyle="secondary"
-                )
-            self.repair_button.place(x=790, y=280, width=100, height=45)
-            
-        else:
-            status_text = "⚠️ Installazione Richiesta"
-            status_color = "#ffa502"
-            button_text = "📦 Installa WTF Modpack"
-            button_style = "primary"
-            play_text = "🚫 Installa Prima il Modpack"
-            play_state = "disabled"
-            
-            # Hide repair button if modpack is not installed
-            if hasattr(self, 'repair_button'):
-                self.repair_button.place_forget()
-            
-        self.canvas.itemconfig(self.modpack_status_text, text=status_text, fill=status_color)
-        self.install_button.config(text=button_text, bootstyle=button_style)
-        self.play_button.config(text=play_text, state=play_state)
-
-    def update_connection_status(self, is_connected):
-        """Update connection status indicator"""
-        global connected
-        connected = is_connected
-        
-        connection_status = "🟢 Online" if connected else "🔴 Offline"
-        connection_color = "#15d38f" if connected else "#ff4757"
-        
-        self.canvas.itemconfig(self.connection_text, text=connection_status, fill=connection_color)
-
-    def find_forge_version(self):
-        """Find the installed Forge version"""
-        try:
-            import minecraft_launcher_lib
-            
-            # Check if the exact version exists
-            if minecraft_launcher_lib.utils.is_version_valid(WTF_FORGE_VERSION, mc_dir):
-                print(f"✅ Versione Forge trovata: {WTF_FORGE_VERSION}")
-                return WTF_FORGE_VERSION
-            
-            # Look for alternative Forge versions
-            versions = minecraft_launcher_lib.utils.get_installed_versions(mc_dir)
-            forge_versions = []
-            
-            for version in versions:
-                if "forge" in version["id"].lower() and "1.20.1" in version["id"]:
-                    forge_versions.append(version["id"])
-                    print(f"🔍 Versione Forge alternativa trovata: {version['id']}")
-            
-            if forge_versions:
-                # Use the first available Forge version for 1.20.1
-                selected_version = forge_versions[0]
-                print(f"✅ Utilizzando versione Forge: {selected_version}")
-                return selected_version
-            
-            # Check for vanilla 1.20.1
-            if minecraft_launcher_lib.utils.is_version_valid("1.20.1", mc_dir):
-                print(f"⚠️ Forge non trovato, utilizzando Minecraft vanilla 1.20.1")
-                showwarning("Forge Non Trovato", 
-                           "⚠️ Minecraft Forge non è stato trovato.\n\n" +
-                           "Il launcher avvierà Minecraft vanilla senza mod.\n" +
-                           "Per utilizzare le mod, reinstalla il modpack.")
-                return "1.20.1"
-            
-            print(f"❌ Nessuna versione valida trovata per 1.20.1")
-            return None
-            
-        except Exception as e:
-            print(f"❌ Errore durante la ricerca versioni: {str(e)}")
-            return None
-
-    def verify_and_repair_installation(self):
-        """Verify and repair the modpack installation"""
-        try:
-            self.update_gui_status(
-                "🔍 Verifica Installazione...",
-                "Controllando l'integrità dell'installazione del modpack...",
-                "Verifica componenti in corso...",
-                True
-            )
-            
-            issues_found = []
-            
-            # Check Minecraft directory
-            if not os.path.exists(mc_dir):
-                issues_found.append("Directory .minecraft mancante")
-                
-            # Check mods directory
-            mods_dir = os.path.join(mc_dir, "mods")
-            if not os.path.exists(mods_dir):
-                issues_found.append("Directory mods mancante")
-            else:
-                mod_files = [f for f in os.listdir(mods_dir) if f.endswith('.jar')]
-                if len(mod_files) == 0:
-                    issues_found.append("Nessuna mod trovata")
-                    
-            # Check Forge installation
-            forge_version = self.find_forge_version()
-            if not forge_version:
-                issues_found.append("Minecraft Forge non installato")
-                
-            if issues_found:
-                self.update_gui_status(
-                    "⚠️ Problemi Trovati",
-                    f"Trovati {len(issues_found)} problemi nell'installazione",
-                    "Riparazione necessaria"
-                )
-                
-                result = askquestion("🔧 Riparazione Necessaria",
-                                   f"⚠️ Trovati i seguenti problemi:\n\n" +
-                                   "\n".join(f"• {issue}" for issue in issues_found) +
-                                   f"\n\nVuoi che il launcher ripari automaticamente questi problemi?")
-                
-                if result == 'yes':
-                    return self.repair_installation()
-                else:
-                    return False
-            else:
-                self.update_gui_status(
-                    "✅ Installazione Verificata",
-                    "Tutti i componenti del modpack sono installati correttamente",
-                    "Nessun problema trovato"
-                )
-                return True
-                
-        except Exception as e:
-            self.update_gui_status(
-                "❌ Errore durante la verifica",
-                f"Si è verificato un errore durante la verifica: {str(e)}",
-                "Verifica fallita"
-            )
-            print(f"❌ Errore durante la verifica dell'installazione: {str(e)}")
-            return False
 
     def run(self):
         """Start the launcher"""
@@ -1919,4 +1754,20 @@ if __name__ == "__main__":
         print(f"❌ Errore critico durante l'avvio: {str(e)}")
         import traceback
         traceback.print_exc()
-        input("Premi Invio per chiudere...")
+        
+        # Gestione errori per eseguibili compilati
+        try:
+            # Prova a mostrare un messagebox se possibile
+            from tkinter.messagebox import showerror
+            showerror("Errore Critico", 
+                     f"❌ Si è verificato un errore critico durante l'avvio:\n\n{str(e)}\n\n" +
+                     "Per assistenza, contatta il supporto tecnico.")
+        except:
+            # Se non è possibile mostrare il messagebox, non usare input() negli eseguibili
+            if hasattr(sys, '_MEIPASS'):
+                # Siamo in un eseguibile compilato, non usare input()
+                print("Chiusura automatica dell'applicazione...")
+                time.sleep(3)
+            else:
+                # Siamo in modalità sviluppo, possiamo usare input()
+                input("Premi Invio per chiudere...")
