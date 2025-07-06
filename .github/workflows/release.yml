@@ -20,7 +20,7 @@ jobs:
 
       - run: mv ./dist/windows/main.exe ./dist/windows/WTF_Modpack_Launcher.exe
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: WTF Nightly Build
           path: ./dist/windows/WTF_Modpack_Launcher.exe
