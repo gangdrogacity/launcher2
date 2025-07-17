@@ -225,6 +225,10 @@ class WTFModpackLauncher():
         # Track Minecraft process
         self.minecraft_process = None
         self.is_minecraft_running = False
+        
+        # Track launcher update status
+        self.is_launcher_updating = False
+        self.setup_complete = False
 
         if os_name.startswith("Windows"):
             try:
@@ -484,10 +488,23 @@ class WTFModpackLauncher():
         
         # Start monitoring Minecraft process
         self.start_minecraft_monitor()
+        
+        # Mark setup as complete after a brief delay to allow UI to stabilize
+        self.window.after(500, self.complete_setup)
+
+    def complete_setup(self):
+        """Mark the launcher setup as complete"""
+        self.setup_complete = True
+        self.update_play_button()
+        print("✅ Setup del launcher completato!")
 
     def get_play_button_text(self):
         """Get the appropriate text for the play button based on current state"""
-        if self.is_minecraft_running:
+        if self.is_launcher_updating:
+            return "🔄 Aggiornamento Launcher..."
+        elif not self.setup_complete:
+            return "⏳ Inizializzazione..."
+        elif self.is_minecraft_running:
             return "🛑 Chiudi Gioco"
         elif not wtf_modpack_installed:
             return "🚫 Installa Prima il Modpack"
@@ -496,7 +513,9 @@ class WTFModpackLauncher():
     
     def get_play_button_command(self):
         """Get the appropriate command for the play button based on current state"""
-        if self.is_minecraft_running:
+        if self.is_launcher_updating or not self.setup_complete:
+            return None  # Disabled state
+        elif self.is_minecraft_running:
             return self.close_minecraft
         else:
             return self.launch_minecraft
@@ -539,11 +558,15 @@ class WTFModpackLauncher():
         
         self.play_button.config(text=new_text, command=new_command)
         
-        # Update button style based on state
-        if self.is_minecraft_running:
-            self.play_button.config(bootstyle="danger")
+        # Update button style and state based on current status
+        if self.is_launcher_updating or not self.setup_complete:
+            self.play_button.config(bootstyle="warning", state="disabled")
+        elif self.is_minecraft_running:
+            self.play_button.config(bootstyle="danger", state="normal")
+        elif not wtf_modpack_installed:
+            self.play_button.config(bootstyle="secondary", state="disabled")
         else:
-            self.play_button.config(bootstyle="success")
+            self.play_button.config(bootstyle="success", state="normal")
     
     def close_minecraft(self):
         """Close the running Minecraft process"""
@@ -1142,12 +1165,6 @@ class WTFModpackLauncher():
                     "Controlla i dettagli dell'errore e riprova"
                 ))
                 self.window.after(0, lambda: showerror("❌ Errore di Avvio", 
-                                                      f"❌ Impossibile avviare Minecraft.\n\n" +
-                                                      f"🔧 Dettagli dell'errore:\n{error_msg}\n\n" +
-                                                      f"💡 Possibili soluzioni:\n" +
-                                                      f"• Verifica che Java sia installato correttamente\n" +
-                                                      f"• Controlla che ci sia abbastanza RAM disponibile\n" +
-                                                      f"• Assicurati che Forge sia installato correttamente\n" +
                                                       f"• Prova a reinstallare il modpack\n\n" +
                                                       f"Se il problema persiste, controlla i log di Minecraft."))
         
@@ -1552,7 +1569,7 @@ class WTFModpackLauncher():
         
         def reset_settings():
             result = tk.messagebox.askquestion("⚠️ Conferma Reset", 
-                                             "Sei sicuro di voler ripristinare le impostazioni predefinite?\n\n" +
+                                             "Sei sicuro di voler ripristinare le impostazioni predefiniti?\n\n" +
                                              "Questo resetterà:\n" +
                                              "• Allocazione RAM al minimo\n" +
                                              "• Username (dovrai riconfigurarlo)\n" +
@@ -1815,6 +1832,10 @@ class WTFModpackLauncher():
     def handle_launcher_update_available(self, update_info):
         """Handle when launcher update is available - automatically start update"""
         try:
+            # Set launcher updating flag
+            self.is_launcher_updating = True
+            self.window.after(0, self.update_play_button)
+            
             self.update_gui_status(
                 "🚀 Aggiornamento Launcher Automatico...",
                 f"Nuova versione {update_info.get('version', 'Sconosciuta')} trovata",
@@ -1828,10 +1849,17 @@ class WTFModpackLauncher():
             
         except Exception as e:
             print(f"Errore nel gestire aggiornamento disponibile: {e}")
+            # Reset flag on error
+            self.is_launcher_updating = False
+            self.window.after(0, self.update_play_button)
     
     def handle_launcher_update_error(self, error_msg):
         """Handle launcher update errors"""
         try:
+            # Reset launcher updating flag
+            self.is_launcher_updating = False
+            self.window.after(0, self.update_play_button)
+            
             self.update_gui_status(
                 "❌ Errore Controllo Aggiornamenti",
                 "Impossibile verificare aggiornamenti del launcher",
@@ -1849,6 +1877,10 @@ class WTFModpackLauncher():
     def start_launcher_update(self, update_info):
         """Start the launcher update process automatically"""
         try:
+            # Ensure launcher updating flag is set
+            self.is_launcher_updating = True
+            self.window.after(0, self.update_play_button)
+            
             # Show progress
             self.update_gui_status(
                 "📥 Aggiornamento Launcher in Corso...",
@@ -1882,6 +1914,10 @@ class WTFModpackLauncher():
                         # Close the launcher after a delay
                         self.window.after(2000, lambda: self.window.quit())
                     else:
+                        # Update failed - reset flag
+                        self.is_launcher_updating = False
+                        self.window.after(0, self.update_play_button)
+                        
                         # Update failed
                         self.window.after(0, lambda: self.update_gui_status(
                             "❌ Aggiornamento Fallito",
@@ -1890,6 +1926,10 @@ class WTFModpackLauncher():
                         ))
                         
                 except Exception as e:
+                    # Reset flag on error
+                    self.is_launcher_updating = False
+                    self.window.after(0, self.update_play_button)
+                    
                     error_msg = str(e)
                     self.window.after(0, lambda: self.handle_launcher_update_error(error_msg))
             
@@ -1897,8 +1937,33 @@ class WTFModpackLauncher():
             
         except Exception as e:
             print(f"Errore nell'avviare aggiornamento: {e}")
+            # Reset flag on error
+            self.is_launcher_updating = False
+            self.window.after(0, self.update_play_button)
             self.handle_launcher_update_error(str(e))
 
+    def debug_update_process(self):
+        """Debug dell'intero processo di aggiornamento"""
+        print("🔍 DEBUG: Processo di aggiornamento")
+        
+        if not self.launcher_updater:
+            print("❌ LauncherUpdater non disponibile")
+            return
+        
+        print("✅ LauncherUpdater disponibile")
+        
+        # Test identificazione eseguibile
+        detected_exe = self.launcher_updater.debug_executable_detection()
+        
+        # Test controllo aggiornamenti
+        print("\n🔍 Test controllo aggiornamenti...")
+        try:
+            update_info = self.launcher_updater.check_for_updates()
+            print(f"✅ Controllo completato: {update_info}")
+        except Exception as e:
+            print(f"❌ Errore controllo: {e}")
+        
+        return detected_exe
 
 # Main execution
 if __name__ == "__main__":

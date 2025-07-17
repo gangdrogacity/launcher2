@@ -7,3 +7,6 @@ build/
 dist/
 __pycache__/
 settings.json
+WTF_Modpack_Launcher.exe
+WTF_Modpack_Launcher.exe.backup
+.timetracker

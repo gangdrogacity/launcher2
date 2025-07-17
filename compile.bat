@@ -24,7 +24,7 @@ echo.
 
 REM Compila il launcher
 echo ⚙️ Avvio compilazione...
-python -m PyInstaller --clean main.spec
+python -m PyInstaller main.spec
 
 if errorlevel 1 (
     echo.
