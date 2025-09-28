@@ -1,52 +1,76 @@
-# WTF Modpack Launcher - Makefile per macOS
-# Comandi semplificati con fix PyInstaller integrato
+# WTF Modpack Launcher - Makefile Universale
+# Funziona su Windows, macOS e Linux
 
-.PHONY: help install run build fix app clean
+# Rileva sistema operativo
+UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
 
-# Mostra aiuto
+# Comando Python
+PYTHON := $(shell which python3 2>/dev/null || which python 2>/dev/null || echo python)
+
+.PHONY: all setup build clean test run help
+
+# Target predefinito
+all: build
+
+# Help
 help:
-	@echo "WTF Modpack Launcher - Comandi Disponibili:"
-	@echo "==========================================="
+	@echo "🚀 WTF Modpack Launcher - Build Universale"
+	@echo "============================================"
 	@echo ""
-	@echo "  make install    - Installa dipendenze"
-	@echo "  make run        - Avvia il launcher (Python)"
-	@echo "  make build      - Compila l'applicazione (con fix auto)"
-	@echo "  make fix        - Applica fix PyInstaller a app esistente"
-	@echo "  make app        - Avvia l'applicazione compilata"
-	@echo "  make clean      - Pulisce i file temporanei"
-	@echo ""
+	@echo "Comandi disponibili:"
+	@echo "  setup  - Configura ambiente di sviluppo"
+	@echo "  build  - Compila l'applicazione"
+	@echo "  clean  - Pulisce i file temporanei"
+	@echo "  test   - Esegue l'applicazione in modalità test"
+	@echo "  run    - Esegue l'applicazione compilata"
+	@echo "  help   - Mostra questo aiuto"
 
-# Installazione completa
-install:
-	@echo "📦 Installazione dipendenze..."
-	./install_macos.sh
+# Setup ambiente (usa lo script Python)
+setup:
+	@$(PYTHON) build.py setup
 
-# Avvio del launcher Python
-run:
-	@echo "🚀 Avvio launcher..."
-	./run_launcher_macos.sh
-
-# Compilazione dell'applicazione (include fix automatico)
+# Build completo (usa lo script Python)
 build:
-	@echo "⚙️ Compilazione applicazione..."
-	./compile_macos_simple.sh
+	@$(PYTHON) build.py
 
-# Fix PyInstaller per applicazione esistente
-fix:
-	@echo "🔧 Fix PyInstaller..."
-	./fix_pyinstaller_macos.sh
-
-# Avvio applicazione compilata
-app:
-	@echo "🚀 Avvio applicazione..."
-	./launch_app.sh
-
-# Pulizia file temporanei
+# Pulizia
 clean:
-	@echo "🧹 Pulizia file temporanei..."
-	rm -rf build/
-	rm -rf dist/
-	rm -rf __pycache__/
+	@echo "🧹 Pulizia in corso..."
+	@rm -rf build dist *.spec.bak
+	@rm -rf __pycache__ *.pyc
+	@echo "✅ Pulizia completata!"
+
+# Test applicazione
+test:
+	@echo "🧪 Test applicazione..."
+ifeq ($(UNAME_S),Windows)
+	@launcher_env\Scripts\python main.py
+else
+	@launcher_env/bin/python main.py
+endif
+
+# Esegui applicazione compilata
+run:
+	@echo "🎯 Esecuzione applicazione..."
+ifeq ($(UNAME_S),Darwin)
+	@if [ -d "dist/WTF Modpack Launcher.app" ]; then \
+		open "dist/WTF Modpack Launcher.app"; \
+	else \
+		echo "❌ Applicazione non trovata. Esegui 'make build' prima."; \
+	fi
+else ifeq ($(UNAME_S),Windows)
+	@if [ -f "dist/WTF Modpack Launcher.exe" ]; then \
+		"dist/WTF Modpack Launcher.exe"; \
+	else \
+		echo "❌ Eseguibile non trovato. Esegui 'make build' prima."; \
+	fi
+else
+	@if [ -f "dist/WTF Modpack Launcher" ]; then \
+		"./dist/WTF Modpack Launcher"; \
+	else \
+		echo "❌ Eseguibile non trovato. Esegui 'make build' prima."; \
+	fi
+endif
 	rm -rf launcher_env/
 	rm -rf *.pyc
 	rm -f settings.json

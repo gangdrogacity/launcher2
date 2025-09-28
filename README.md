@@ -1,33 +1,81 @@
-# WTF Modpack Launcher
+# WTF Modpack Launcher 🚀
 
-Un launcher moderno per il WTF Modpack di Minecraft 1.20.1 con Forge.
+Un launcher moderno per modpack Minecraft con supporto cross-platform.
 
-## 🚀 Caratteristiche
+## � Compatibilità
 
-- ✅ Installazione automatica di Minecraft Forge 1.20.1-47.3.33
-- 📦 Download e installazione automatica del WTF Modpack
-- 🔄 Controllo aggiornamenti del modpack
-- 🎮 Avvio rapido di Minecraft con modalità offline
-- ⚙️ Gestione memoria RAM ottimizzata
-- 🔧 Strumenti di riparazione e verifica
-- 💾 Interfaccia grafica moderna con ttkbootstrap
+- ✅ **Windows** (7/10/11)
+- ✅ **macOS** (10.14+)
+- ✅ **Linux** (Ubuntu/Debian)
+
+## 🎯 Caratteristiche
+
+- 🖥️ Interfaccia grafica moderna con ttkbootstrap
+- ⚡ Download automatico modpack
+- 🎮 Integrazione Minecraft Launcher
+- 📦 Build automatico per tutte le piattaforme
+- � Supporto firma app macOS
+
+## 🛠️ Quick Start
+
+### Metodo 1: Script Python (Raccomandato)
+
+```bash
+# Compila per la tua piattaforma
+python build.py
+```
+
+### Metodo 2: Makefile
+
+```bash
+# Compila
+make build
+
+# Test in modalità sviluppo
+make test
+
+# Esegui app compilata
+make run
+
+# Pulizia
+make clean
+```
 
 ## 📋 Requisiti
 
-- **Sistema Operativo**: Windows 10/11 o Linux
-- **RAM**: Minimo 4GB (8GB consigliati)
-- **Java**: Java 17 o superiore
-- **Connessione Internet**: Richiesta per installazione e aggiornamenti
-- **Spazio Disco**: ~2GB per il modpack completo
+- **Python 3.8+** (raccomandato 3.13+)
+- **pip** per le dipendenze
+- **PyInstaller** (installato automaticamente)
 
-## 🔧 Installazione
+### Dipendenze automatiche
 
-### Opzione 1: Eseguibile Precompilato
-1. Scarica `WTF_Modpack_Launcher.exe` dalla sezione Releases
-2. Esegui il launcher
-3. Segui la procedura guidata
+Il build script installerà automaticamente:
+- `minecraft-launcher-lib`
+- `ttkbootstrap`
+- `requests`
+- `psutil`
+- `PyInstaller`
 
-### Opzione 2: Da Codice Sorgente
+## 🏗️ Build Dettagliato
+
+### Windows
+```bash
+python build.py
+# Output: dist/WTF Modpack Launcher.exe
+```
+
+### macOS
+```bash
+python build.py
+# Output: dist/WTF Modpack Launcher.app
+# Include fix Gatekeeper automatici
+```
+
+### Linux
+```bash
+python build.py
+# Output: dist/WTF Modpack Launcher
+```
 1. Clona il repository:
    ```bash
    git clone https://github.com/your-repo/wtf-modpack-launcher.git

@@ -1,10 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-# WTF Modpack Launcher - PyInstaller Spec File per macOS
-# Questo file contiene la configurazione per la compilazione dell'applicazione macOS
+# WTF Modpack Launcher - PyInstaller Spec File Universale
+# Supporta Windows e macOS automaticamente
 
 import os
+import platform
 from pathlib import Path
+
+# Rileva il sistema operativo
+current_os = platform.system()
+is_windows = current_os == "Windows"
+is_macos = current_os == "Darwin"
 
 # Directory corrente
 current_dir = Path(SPECPATH)
@@ -19,19 +25,25 @@ for dir_name in data_dirs:
     if dir_path.exists():
         added_files.append((str(dir_path), dir_name))
 
-# Aggiungi file singoli se esistono
+# File da includere (comuni)
 data_files = [
     'README.md',
     'requirements.txt',
     'launcher_version.txt'
 ]
 
+# Aggiungi icona specifica per OS
+if is_windows and (current_dir / 'icon.ico').exists():
+    data_files.append('icon.ico')
+elif is_macos and (current_dir / 'icon.icns').exists():
+    data_files.append('icon.icns')
+
 for file_name in data_files:
     file_path = current_dir / file_name
     if file_path.exists():
         added_files.append((str(file_path), '.'))
 
-# Moduli nascosti da includere
+# Moduli nascosti da includere (comuni)
 hidden_imports = [
     'tkinter',
     'tkinter.ttk',
@@ -89,11 +101,12 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # Finestra console nascosta su macOS
+    console=False,  # Nasconde console su entrambe le piattaforme
     disable_windowed_traceback=False,
+    icon='icon.ico' if is_windows else None,  # Icona Windows
 )
 
-# Configurazione bundle per macOS
+# Configurazione COLLECT (comune)
 coll = COLLECT(
     exe,
     a.binaries,
@@ -105,23 +118,28 @@ coll = COLLECT(
     name='WTF Modpack Launcher'
 )
 
-# Creazione app bundle per macOS
-app = BUNDLE(
-    coll,
-    name='WTF Modpack Launcher.app',
-    icon='icon.icns',  # Icona macOS
-    bundle_identifier='com.wtfmodpack.launcher',
-    version='1.0.0',
-    info_plist={
-        'NSPrincipalClass': 'NSApplication',
-        'NSAppleScriptEnabled': False,
-        'CFBundleDocumentTypes': [
-            {
-                'CFBundleTypeName': 'Minecraft Profile',
-                'CFBundleTypeIconFile': 'icon',
-                'LSItemContentTypes': ['public.json'],
-                'LSHandlerRank': 'Owner'
-            }
-        ]
-    },
-)
+# Configurazione specifica per macOS - crea app bundle
+if is_macos:
+    app = BUNDLE(
+        coll,
+        name='WTF Modpack Launcher.app',
+        icon='icon.icns' if (current_dir / 'icon.icns').exists() else None,
+        bundle_identifier='com.wtfmodpack.launcher',
+        version='1.0.0',
+        info_plist={
+            'NSPrincipalClass': 'NSApplication',
+            'NSAppleScriptEnabled': False,
+            'NSHighResolutionCapable': True,
+            'LSUIElement': False,
+            'LSBackgroundOnly': False,
+            'LSRequiresNativeExecution': True,
+            'CFBundleDocumentTypes': [
+                {
+                    'CFBundleTypeName': 'Minecraft Profile',
+                    'CFBundleTypeIconFile': 'icon',
+                    'LSItemContentTypes': ['public.json'],
+                    'LSHandlerRank': 'Owner'
+                }
+            ]
+        },
+    )
