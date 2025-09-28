@@ -1,12 +1,24 @@
+# Directory temporanee e generati
 .minecraft/*
-
-mods/
-config/
-logs/
 build/
 dist/
 __pycache__/
+launcher_env/
+
+# File di configurazione locale
 settings.json
-WTF_Modpack_Launcher.exe
+
+# File compilati
+*.exe
+*.pyc
+*.pyo
+
+# Backup e temporanei
+*.backup
+*.tmp
+*.log
+
+# macOS
+.DS_Store
 WTF_Modpack_Launcher.exe.backup
 .timetracker

@@ -1,0 +1,53 @@
+# WTF Modpack Launcher - Makefile per macOS
+# Comandi semplificati per le operazioni essenziali
+
+.PHONY: help install run build app sign clean
+
+# Mostra aiuto
+help:
+	@echo "WTF Modpack Launcher - Comandi Disponibili:"
+	@echo "==========================================="
+	@echo ""
+	@echo "  make install    - Installa dipendenze"
+	@echo "  make run        - Avvia il launcher (Python)"
+	@echo "  make build      - Compila l'applicazione nativa"
+	@echo "  make sign       - Firma l'applicazione esistente"
+	@echo "  make app        - Avvia l'applicazione compilata"
+	@echo "  make clean      - Pulisce i file temporanei"
+	@echo ""
+
+# Installazione completa
+install:
+	@echo "📦 Installazione dipendenze..."
+	./install_macos.sh
+
+# Avvio del launcher Python
+run:
+	@echo "🚀 Avvio launcher..."
+	./run_launcher_macos.sh
+
+# Compilazione dell'applicazione (include firma automatica)
+build:
+	@echo "⚙️ Compilazione applicazione..."
+	./compile_macos_simple.sh
+
+# Firma dell'applicazione esistente
+sign:
+	@echo "🔐 Firma applicazione..."
+	./sign_app.sh
+
+# Avvio applicazione compilata
+app:
+	@echo "🚀 Avvio applicazione..."
+	./launch_app.sh
+
+# Pulizia file temporanei
+clean:
+	@echo "🧹 Pulizia file temporanei..."
+	rm -rf build/
+	rm -rf dist/
+	rm -rf __pycache__/
+	rm -rf launcher_env/
+	rm -rf *.pyc
+	rm -f settings.json
+	@echo "✅ Pulizia completata"

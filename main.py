@@ -115,6 +115,15 @@ elif OS.startswith("Linux"):
     settings["setting-info"][0]["fps_boost_selected"] = False
     settings["Fps-Boost"] = False
     settings["executablePath"] = "java"
+elif OS.startswith("Darwin") or OS.startswith("macOS"):  # macOS
+    settings = settings_base.copy()
+    settings["setting-info"][0]["fps_boost_selected"] = False
+    settings["Fps-Boost"] = False
+    settings["executablePath"] = "java"
+else:
+    # Default fallback for other systems
+    settings = settings_base.copy()
+    settings["executablePath"] = "java"
 
 
 if not os.path.exists(r"{}/settings.json".format(currn_dir)):
@@ -217,10 +226,33 @@ class WTFModpackLauncher():
         # Initialize launcher updater
         self.launcher_updater = LauncherUpdater() if LauncherUpdater else None
 
-        self.window = style.master
+        # Crea la finestra principale direttamente invece di usare style.master
+        self.window = tk.Tk()
         self.window.geometry("1024x600+110+60")
         self.window.title("WTF Modpack Launcher")
         self.window.configure(bg="#1c1c1c")
+        
+        # Nascondi la finestra di ttkbootstrap se esiste
+        if hasattr(style, 'master') and style.master != self.window:
+            style.master.withdraw()
+        
+        # Applicare il theme di ttkbootstrap DOPO aver creato la finestra
+        style.configure("TNotebook.Tab", foreground="#15d38f", background="#23272a", bordercolor="#072A6C")
+        
+        # Configurazioni specifiche per macOS
+        if os_name.startswith("Darwin") or os_name.startswith("macOS"):  # macOS
+            # Forza l'app a essere visibile
+            self.window.lift()
+            self.window.attributes('-topmost', True)
+            # Centra la finestra sullo schermo
+            self.window.update_idletasks()
+            width = 1024
+            height = 600
+            x = (self.window.winfo_screenwidth() // 2) - (width // 2)
+            y = (self.window.winfo_screenheight() // 2) - (height // 2)
+            self.window.geometry(f'{width}x{height}+{x}+{y}')
+            # Rimuove topmost dopo aver mostrato la finestra
+            self.window.after(100, lambda: self.window.attributes('-topmost', False))
         
         # Track Minecraft process
         self.minecraft_process = None
@@ -239,8 +271,27 @@ class WTFModpackLauncher():
                     print(f"⚠️ Icona non trovata: {icon_path}")
             except Exception as e:
                 print(f"⚠️ Impossibile caricare l'icona: {str(e)}")
+        elif os_name.startswith("Darwin") or os_name.startswith("macOS"):  # macOS
+            try:
+                # Su macOS, forziamo la finestra in primo piano
+                self.window.lift()
+                self.window.attributes('-topmost', True)
+                self.window.after_idle(lambda: self.window.attributes('-topmost', False))
+                
+                # Prova a caricare un'icona se disponibile
+                icon_path = resource_path("icon.icns")
+                if os.path.exists(icon_path):
+                    # Su macOS, l'icona viene gestita dal bundle dell'app
+                    print(f"✅ Icona macOS trovata: {icon_path}")
+                else:
+                    print("ℹ️ Icona macOS non trovata, utilizzo icona di default")
+            except Exception as e:
+                print(f"⚠️ Configurazione macOS fallita: {str(e)}")
+        else:
+            print("ℹ️ Sistema operativo non Windows/macOS, utilizzo configurazione di default")
 
         self.setup_ui()
+        print("✅ Setup UI completato!")
         
         # Check for launcher updates on startup
         if connected and self.launcher_updater and auto_update_launcher:
@@ -250,31 +301,43 @@ class WTFModpackLauncher():
 
     def setup_ui(self):
         """Setup the main user interface"""
-        self.canvas = Canvas(
-            self.window,
-            bg="#1c1c1c",
-            height=600,
-            width=1024,
-            bd=0,
-            highlightthickness=0,
-            relief="ridge"
-        )
-        self.canvas.place(x=0, y=0)
+        print("🔧 Inizializzazione UI...")
+        try:
+            self.canvas = Canvas(
+                self.window,
+                bg="#1c1c1c",
+                height=600,
+                width=1024,
+                bd=0,
+                highlightthickness=0,
+                relief="ridge"
+            )
+            print("✅ Canvas creato")
+            self.canvas.place(x=0, y=0)
+            print("✅ Canvas posizionato")
 
-        # Background - solid color only
-        self.canvas.create_rectangle(0, 0, 1024, 600, fill="#1c1c1c", outline="")
-        
-        # Header section with gradient effect
-        self.canvas.create_rectangle(0, 0, 1024, 120, fill="#2d2d2d", outline="")
-        self.canvas.create_rectangle(0, 115, 1024, 120, fill="#15d38f", outline="")
+            # Background - solid color only
+            self.canvas.create_rectangle(0, 0, 1024, 600, fill="#1c1c1c", outline="")
+            print("✅ Background creato")
+            
+            # Header section with gradient effect
+            self.canvas.create_rectangle(0, 0, 1024, 120, fill="#2d2d2d", outline="")
+            self.canvas.create_rectangle(0, 115, 1024, 120, fill="#15d38f", outline="")
+            print("✅ Header creato")
 
-        # Title with modern styling
-        self.canvas.create_text(
-            512, 60,
-            text="WTF MODPACK LAUNCHER",
-            fill="white",
-            font=("Arial", 28, "bold")
-        )
+            # Title with modern styling
+            self.canvas.create_text(
+                512, 60,
+                text="WTF MODPACK LAUNCHER",
+                fill="white",
+                font=("Arial", 28, "bold")
+            )
+            print("✅ Titolo creato")
+
+        except Exception as e:
+            print(f"❌ Errore durante setup UI: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
         # Subtitle
         self.canvas.create_text(
@@ -1974,6 +2037,13 @@ if __name__ == "__main__":
         print("🚀 Avvio WTF Modpack Launcher...")
         launcher = WTFModpackLauncher()
         print("✅ GUI caricata con successo!")
+        
+        # Fix specifico per macOS
+        if os_name.startswith("Darwin") or os_name.startswith("macOS"):
+            launcher.window.update()
+            launcher.window.deiconify()  # Assicurati che la finestra sia visibile
+            launcher.window.focus_force()  # Forza il focus
+        
         launcher.window.mainloop()
         
     except Exception as e:
