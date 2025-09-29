@@ -20,6 +20,16 @@ from zipfile import ZipFile
 from shutil import rmtree
 import psutil
 import re
+import socket
+import struct
+
+# DNS resolution imports
+try:
+    import dns.resolver
+    DNS_AVAILABLE = True
+except ImportError:
+    print("⚠️ dnspython non installato. Monitoraggio server limitato.")
+    DNS_AVAILABLE = False
 
 # Import launcher updater
 try:
@@ -28,7 +38,21 @@ except ImportError:
     print("⚠️ Modulo updater non trovato. Funzionalità di autoaggiornamento disabilitata.")
     LauncherUpdater = None
 
-print("🚀 Avvio WTF Modpack Launcher v1.0...")
+def get_launcher_version():
+    """Get launcher version from launcher_version.txt"""
+    try:
+        version_file = "launcher_version.txt"  # Use relative path for now
+        with open(version_file, "r") as f:
+            version = f.read().strip()
+        return version
+    except Exception as e:
+        print(f"⚠️ Errore lettura versione: {e}")
+        return "1.0.0"  # Fallback version
+
+# Get current launcher version
+LAUNCHER_VERSION = get_launcher_version()
+
+print(f"🚀 Avvio WTF Modpack Launcher v{LAUNCHER_VERSION}...")
 print("⏳ Caricamento componenti, attendere prego...")
 print("✅ Componenti caricati!")
 print("🎮 Preparazione interfaccia grafica...")
@@ -56,14 +80,193 @@ WTF_FORGE_VERSION = "1.20.1-47.3.33"
 WTF_MC_VERSION = "1.20.1"
 WTF_MINIMUM_RAM = 4  # 4GB minimum
 
+# Server monitoring settings
+SERVER_DOMAIN = "play.gangdrogacity.xyz"
+server_status = {
+    'online': False,
+    'players': {'online': 0, 'max': 0},
+    'version': 'Unknown',
+    'motd': 'Server Offline',
+    'ping': 0,
+    'last_check': None
+}
 
-def get_size(bytes, suffix="B"):
+
+def get_size(size_bytes, suffix="B"):
     """Scale bytes to its proper format"""
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
-        if bytes < factor:
-            return f"{bytes:.2f}{unit}{suffix}"
-        bytes /= factor
+        if size_bytes < factor:
+            return f"{size_bytes:.2f}{unit}{suffix}"
+        size_bytes /= factor
+
+
+def resolve_srv_record(domain):
+    """Resolve SRV record for Minecraft server"""
+    if not DNS_AVAILABLE:
+        return domain, 25565
+    
+    try:
+        srv_records = dns.resolver.resolve(f'_minecraft._tcp.{domain}', 'SRV')
+        if srv_records:
+            record = srv_records[0]
+            return str(record.target).rstrip('.'), record.port
+    except Exception as e:
+        print(f"⚠️ Errore risoluzione SRV per {domain}: {e}")
+    
+    return domain, 25565
+
+def ping_minecraft_server(host, port, timeout=5):
+    """Ping a Minecraft server and get status"""
+    try:
+        start_time = time.time()
+        
+        # Create socket connection
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        
+        # Send handshake packet
+        def pack_varint(value):
+            data = b''
+            while value >= 0x80:
+                data += bytes([value & 0x7F | 0x80])
+                value >>= 7
+            data += bytes([value])
+            return data
+        
+        def pack_string(s):
+            return pack_varint(len(s)) + s.encode('utf-8')
+        
+        # Handshake packet
+        handshake = pack_varint(0)  # Packet ID
+        handshake += pack_varint(760)  # Protocol version (1.19.2)
+        handshake += pack_string(host)
+        handshake += struct.pack('>H', port)
+        handshake += pack_varint(1)  # Next state (status)
+        
+        # Send handshake
+        sock.send(pack_varint(len(handshake)) + handshake)
+        
+        # Send status request
+        status_request = pack_varint(0)  # Packet ID
+        sock.send(pack_varint(len(status_request)) + status_request)
+        
+        # Read response
+        def read_varint():
+            value = 0
+            position = 0
+            while True:
+                byte_data = sock.recv(1)
+                if not byte_data:
+                    raise Exception("Connection closed")
+                byte_val = byte_data[0]
+                value |= (byte_val & 0x7F) << position
+                if not byte_val & 0x80:
+                    break
+                position += 7
+                if position >= 32:
+                    raise Exception("VarInt too big")
+            return value
+        
+        # Read response length
+        response_length = read_varint()
+        
+        # Read packet ID
+        packet_id = read_varint()
+        
+        # Read JSON length
+        json_length = read_varint()
+        
+        # Read JSON data
+        json_data = b''
+        while len(json_data) < json_length:
+            chunk = sock.recv(json_length - len(json_data))
+            if not chunk:
+                break
+            json_data += chunk
+        
+        sock.close()
+        
+        ping_time = int((time.time() - start_time) * 1000)
+        
+        # Parse JSON response
+        import json as jsonlib
+        try:
+            response = jsonlib.loads(json_data.decode('utf-8'))
+        except:
+            # Fallback if JSON parsing fails
+            return {
+                'online': True,
+                'players': {'online': 0, 'max': 0},
+                'version': 'Unknown',
+                'motd': 'Server Online (Parse Error)',
+                'ping': ping_time,
+                'last_check': time.time()
+            }
+        
+        # Extract MOTD
+        motd = "Server Online"
+        if 'description' in response:
+            if isinstance(response['description'], dict):
+                if 'text' in response['description']:
+                    motd = response['description']['text']
+                elif 'extra' in response['description']:
+                    motd = ''.join([item.get('text', '') for item in response['description']['extra']])
+            elif isinstance(response['description'], str):
+                motd = response['description']
+        
+        return {
+            'online': True,
+            'players': {
+                'online': response.get('players', {}).get('online', 0),
+                'max': response.get('players', {}).get('max', 0)
+            },
+            'version': response.get('version', {}).get('name', 'Unknown'),
+            'motd': motd,
+            'ping': ping_time,
+            'last_check': time.time()
+        }
+        
+    except Exception as e:
+        print(f"❌ Errore ping server {host}:{port} - {e}")
+        return {
+            'online': False,
+            'players': {'online': 0, 'max': 0},
+            'version': 'Unknown',
+            'motd': 'Connection Failed',
+            'ping': 0,
+            'last_check': time.time()
+        }
+
+def check_server_status():
+    """Check the status of the multiplayer server"""
+    global server_status
+    
+    try:
+        # Resolve SRV record
+        host, port = resolve_srv_record(SERVER_DOMAIN)
+        print(f"🌐 Checking server: {host}:{port}")
+        
+        # Ping server
+        status = ping_minecraft_server(host, port)
+        server_status.update(status)
+        
+        print(f"📊 Server status: {'Online' if status['online'] else 'Offline'}")
+        if status['online']:
+            print(f"👥 Players: {status['players']['online']}/{status['players']['max']}")
+            print(f"📶 Ping: {status['ping']}ms")
+        
+    except Exception as e:
+        print(f"❌ Errore controllo server: {e}")
+        server_status.update({
+            'online': False,
+            'players': {'online': 0, 'max': 0},
+            'version': 'Unknown',
+            'motd': 'Check Failed',
+            'ping': 0,
+            'last_check': time.time()
+        })
 
 
 svmem = psutil.virtual_memory()
@@ -218,9 +421,9 @@ class WTFModpackLauncher():
         self.launcher_updater = LauncherUpdater() if LauncherUpdater else None
 
         self.window = style.master
-        self.window.geometry("1024x600+110+60")
+        self.window.geometry("1200x600+110+60")
         self.window.title("WTF Modpack Launcher")
-        self.window.configure(bg="#1c1c1c")
+        self.window.configure(bg="#0B0F14")
         
         # Track Minecraft process
         self.minecraft_process = None
@@ -260,7 +463,7 @@ class WTFModpackLauncher():
             self.window,
             bg="#0B0F14",
             height=600,
-            width=1024,
+            width=1200,
             bd=0,
             highlightthickness=0,
             relief="ridge"
@@ -268,10 +471,10 @@ class WTFModpackLauncher():
         self.canvas.place(x=0, y=0)
 
         # Background
-        self.canvas.create_rectangle(0, 0, 1024, 600, fill="#0B0F14", outline="")
+        self.canvas.create_rectangle(0, 0, 1200, 600, fill="#0B0F14", outline="")
         
         # AppBar (Top Navigation)
-        self.canvas.create_rectangle(0, 0, 1024, 80, fill="#111827", outline="")
+        self.canvas.create_rectangle(0, 0, 1200, 80, fill="#111827", outline="")
         
         # Logo and title
         self.canvas.create_text(
@@ -376,10 +579,74 @@ class WTFModpackLauncher():
 
         # Main Panel - Stepper
         stepper_y = 140
-        self.canvas.create_rectangle(20, stepper_y, 1004, stepper_y + 280, fill="#111827", outline="#1F2937", width=1)
+        self.canvas.create_rectangle(20, stepper_y, 750, stepper_y + 280, fill="#111827", outline="#1F2937", width=1)
+        
+        # Server Status Panel (Right side)
+        server_panel_x = 770
+        self.canvas.create_rectangle(server_panel_x, stepper_y, 1180, stepper_y + 280, fill="#111827", outline="#1F2937", width=1)
+        
+        # Server panel header
+        self.canvas.create_text(
+            server_panel_x + 20, stepper_y + 20,
+            text="🌐 GANGDROGACITY ONLINE",
+            fill="#34D399",
+            font=("Arial", 12, "bold"),
+            anchor="w"
+        )
+        
+        self.canvas.create_text(
+            server_panel_x + 20, stepper_y + 40,
+            text=SERVER_DOMAIN,
+            fill="#9CA3AF",
+            font=("Arial", 10),
+            anchor="w"
+        )
+        
+        # Server status indicators
+        status_y = stepper_y + 70
+        
+        # Status indicator
+        self.server_status_circle = self.canvas.create_oval(
+            server_panel_x + 20, status_y, server_panel_x + 35, status_y + 15,
+            fill="#EF4444", outline=""
+        )
+        self.server_status_text = self.canvas.create_text(
+            server_panel_x + 45, status_y + 7,
+            text="Checking...",
+            fill="#E5E7EB",
+            font=("Arial", 10, "bold"),
+            anchor="w"
+        )
+        
+        # Players count
+        self.server_players_text = self.canvas.create_text(
+            server_panel_x + 20, status_y + 30,
+            text="👥 Players: -/-",
+            fill="#9CA3AF",
+            font=("Arial", 10),
+            anchor="w"
+        )
+        
+        # Ping
+        self.server_ping_text = self.canvas.create_text(
+            server_panel_x + 20, status_y + 50,
+            text="📶 Ping: -ms",
+            fill="#9CA3AF",
+            font=("Arial", 10),
+            anchor="w"
+        )
+        
+        # Refresh button (centered)
+        self.refresh_server_button = Button(
+            self.window,
+            text="Refresh",
+            command=self.refresh_server_status,
+            width=12
+        )
+        self.refresh_server_button.place(x=server_panel_x + 20, y=status_y + 80, width=100, height=25)
         
         # Step indicators
-        step_width = 320
+        step_width = 230
         for i, (step_num, step_title, step_desc) in enumerate([
             ("1", "Seleziona Pack", "Installa o verifica il modpack"),
             ("2", "Configura", "Imposta RAM e Java"),
@@ -411,7 +678,7 @@ class WTFModpackLauncher():
 
         # Active step content area
         content_y = stepper_y + 80
-        self.canvas.create_rectangle(40, content_y, 984, content_y + 120, fill="#0B0F14", outline="#1F2937", width=1)
+        self.canvas.create_rectangle(40, content_y, 730, content_y + 120, fill="#0B0F14", outline="#1F2937", width=1)
         
         # Step content based on current state
         if not wtf_modpack_installed:
@@ -463,26 +730,11 @@ class WTFModpackLauncher():
 
         # Collapsible log area
         log_y = stepper_y + 220
-        self.canvas.create_rectangle(40, log_y, 984, log_y + 60, fill="#111827", outline="#1F2937", width=1)
+        self.canvas.create_rectangle(40, log_y, 730, log_y + 60, fill="#111827", outline="#1F2937", width=1)
         
-        # Log header with collapse toggle
+        # Log header
         self.log_collapsed = True
         self.canvas.create_text(60, log_y + 15, text="Log operazioni", fill="#9CA3AF", font=("Arial", 10, "bold"), anchor="w")
-        self.toggle_log_button = Button(
-            self.window,
-            text="📋",
-            command=self.toggle_log,
-            width=4
-        )
-        self.toggle_log_button.place(x=920, y=log_y + 5, width=30, height=20)
-
-        self.copy_log_button = Button(
-            self.window,
-            text="📋",
-            command=self.copy_log,
-            width=6
-        )
-        self.copy_log_button.place(x=955, y=log_y + 5, width=25, height=20)
 
         # Status labels (for log content)
         self.status_label = Label(
@@ -512,10 +764,10 @@ class WTFModpackLauncher():
         )
 
         # Footer
-        self.canvas.create_rectangle(0, 560, 1024, 600, fill="#111827", outline="")
+        self.canvas.create_rectangle(0, 560, 1200, 600, fill="#111827", outline="")
         footer_text = "Per il multiplayer usa il launcher ufficiale Minecraft"
         self.canvas.create_text(
-            512, 580,
+            600, 580,
             text=footer_text,
             fill="#9CA3AF",
             font=("Arial", 9),
@@ -524,7 +776,87 @@ class WTFModpackLauncher():
 
         # Start monitoring and complete setup
         self.start_minecraft_monitor()
+        self.start_server_monitor()
         self.window.after(500, self.complete_setup)
+    
+    def start_server_monitor(self):
+        """Start monitoring the multiplayer server"""
+        def server_monitor_thread():
+            while True:
+                try:
+                    check_server_status()
+                    self.window.after(0, self.update_server_display)
+                    time.sleep(30)  # Check every 30 seconds
+                except Exception as e:
+                    print(f"Error in server monitor: {e}")
+                    time.sleep(60)  # Wait longer on error
+        
+        # Initial check
+        Thread(target=check_server_status, daemon=True).start()
+        
+        # Start continuous monitoring
+        monitor_thread = Thread(target=server_monitor_thread, daemon=True)
+        monitor_thread.start()
+    
+    def update_server_display(self):
+        """Update the server status display"""
+        try:
+            if server_status['online']:
+                # Server is online
+                status_color = "#34D399"
+                status_text = "Online"
+                self.canvas.itemconfig(self.server_status_circle, fill=status_color)
+                self.canvas.itemconfig(self.server_status_text, text=status_text, fill="#E5E7EB")
+                
+                # Update player count
+                players_text = f"👥 Players: {server_status['players']['online']}/{server_status['players']['max']}"
+                self.canvas.itemconfig(self.server_players_text, text=players_text)
+                
+                # Update ping
+                ping_text = f"📶 Ping: {server_status['ping']}ms"
+                ping_color = "#34D399" if server_status['ping'] < 100 else "#F59E0B" if server_status['ping'] < 200 else "#EF4444"
+                self.canvas.itemconfig(self.server_ping_text, text=ping_text, fill=ping_color)
+                
+            else:
+                # Server is offline
+                status_color = "#EF4444"
+                status_text = "Offline"
+                self.canvas.itemconfig(self.server_status_circle, fill=status_color)
+                self.canvas.itemconfig(self.server_status_text, text=status_text, fill="#EF4444")
+                
+                # Reset other fields
+                self.canvas.itemconfig(self.server_players_text, text="👥 Players: -/-", fill="#9CA3AF")
+                self.canvas.itemconfig(self.server_ping_text, text="📶 Ping: -ms", fill="#9CA3AF")
+                
+        except Exception as e:
+            print(f"Error updating server display: {e}")
+    
+    def refresh_server_status(self):
+        """Manually refresh server status"""
+        self.canvas.itemconfig(self.server_status_text, text="Checking...", fill="#F59E0B")
+        
+        def refresh_thread():
+            check_server_status()
+            self.window.after(0, self.update_server_display)
+        
+        Thread(target=refresh_thread, daemon=True).start()
+    
+    def show_connect_info(self):
+        """Show information about connecting to the server"""
+        if server_status['online']:
+            showinfo("🌐 Connessione Server", 
+                    f"🎮 Server: {SERVER_DOMAIN}\n" +
+                    f"👥 Players: {server_status['players']['online']}/{server_status['players']['max']}\n" +
+                    f"📶 Ping: {server_status['ping']}ms\n\n" +
+                    f"⚠️ Per connetterti al server multiplayer:\n" +
+                    f"1. Usa il launcher ufficiale Minecraft\n" +
+                    f"2. Aggiungi server: {SERVER_DOMAIN}\n" +
+                    f"3. Assicurati di avere un account Premium\n\n" +
+                    f"💡 Questo launcher è solo per modalità offline!")
+        else:
+            showwarning("❌ Server Offline", 
+                       f"Il server {SERVER_DOMAIN} è attualmente offline.\n\n" +
+                       f"Riprova più tardi o controlla gli aggiornamenti del server.")
 
     def complete_setup(self):
         """Mark the launcher setup as complete"""
@@ -1503,7 +1835,7 @@ class WTFModpackLauncher():
                     bg="#2d2d2d", fg="#15d38f", font=("Arial", 12, "bold")).pack(pady=(10, 5))
             
             # Current launcher version
-            current_version = self.launcher_updater.current_version
+            current_version = LAUNCHER_VERSION
             tk.Label(update_frame, text=f"Versione corrente: {current_version}", 
                     bg="#2d2d2d", fg="white", font=("Arial", 10)).pack(pady=5)
             
