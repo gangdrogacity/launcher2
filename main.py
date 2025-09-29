@@ -249,10 +249,16 @@ class WTFModpackLauncher():
             self.schedule_periodic_update_check()
 
     def setup_ui(self):
-        """Setup the main user interface"""
+        """Setup the modern, clean user interface"""
+        # Configure modern theme colors
+        style.configure("Modern.TButton", borderwidth=0, relief="flat", focuscolor="none")
+        style.map("Modern.TButton", 
+                  foreground=[('active', '#E5E7EB'), ('!active', '#E5E7EB')],
+                  background=[('active', '#1F2937'), ('!active', '#111827')])
+        
         self.canvas = Canvas(
             self.window,
-            bg="#1c1c1c",
+            bg="#0B0F14",
             height=600,
             width=1024,
             bd=0,
@@ -261,153 +267,192 @@ class WTFModpackLauncher():
         )
         self.canvas.place(x=0, y=0)
 
-        # Background - solid color only
-        self.canvas.create_rectangle(0, 0, 1024, 600, fill="#1c1c1c", outline="")
+        # Background
+        self.canvas.create_rectangle(0, 0, 1024, 600, fill="#0B0F14", outline="")
         
-        # Header section with gradient effect
-        self.canvas.create_rectangle(0, 0, 1024, 120, fill="#2d2d2d", outline="")
-        self.canvas.create_rectangle(0, 115, 1024, 120, fill="#15d38f", outline="")
-
-        # Title with modern styling
+        # AppBar (Top Navigation)
+        self.canvas.create_rectangle(0, 0, 1024, 80, fill="#111827", outline="")
+        
+        # Logo and title
         self.canvas.create_text(
-            512, 60,
-            text="WTF MODPACK LAUNCHER",
-            fill="white",
-            font=("Arial", 28, "bold")
+            30, 25,
+            text="WTF Modpack Launcher",
+            fill="#E5E7EB",
+            font=("Arial", 18, "bold"),
+            anchor="w"
         )
-
-        # Subtitle
+        
+        # Version tag
         self.canvas.create_text(
-            512, 90,
+            30, 50,
             text="Minecraft 1.20.1 • Forge 47.3.33",
-            fill="#b0b0b0",
-            font=("Arial", 12)
+            fill="#9CA3AF",
+            font=("Arial", 10),
+            anchor="w"
         )
 
-        # Status cards background
-        self.canvas.create_rectangle(50, 140, 974, 220, fill="#2d2d2d", outline="#444444", width=1)
-        
-        # Version status card
-        self.canvas.create_rectangle(70, 155, 320, 205, fill="#333333", outline="#555555", width=1)
-        self.canvas.create_text(
-            195, 170,
-            text="📦 VERSIONE PACK",
-            fill="#15d38f",
-            font=("Arial", 10, "bold")
-        )
-        
-        # Version and status info area
-        self.version_text = self.canvas.create_text(
-            195, 190,
-            text=f"{wtf_modpack_version if wtf_modpack_version else 'Non Installato'}",
-            fill="white",
-            font=("Arial", 12, "bold")
-        )
-        
-        # System info card
-        self.canvas.create_rectangle(340, 155, 590, 205, fill="#333333", outline="#555555", width=1)
-        self.canvas.create_text(
-            465, 170,
-            text="💾 SISTEMA",
-            fill="#15d38f",
-            font=("Arial", 10, "bold")
-        )
-        
-        # System info display
-        total_ram = get_size(svmem.total)
-        system_info = f"RAM: {total_ram} | Allocata: {allocated_ram if allocated_ram else f'{WTF_MINIMUM_RAM}G'}"
-        self.system_info_text = self.canvas.create_text(
-            465, 190,
-            text=system_info,
-            fill="white",
-            font=("Arial", 9)
-        )
-
-        # Connection status card
-        self.canvas.create_rectangle(610, 155, 860, 205, fill="#333333", outline="#555555", width=1)
-        self.canvas.create_text(
-            735, 170,
-            text="🌐 CONNESSIONE",
-            fill="#15d38f",
-            font=("Arial", 10, "bold")
-        )
-        
-        # Connection status indicator
-        connection_status = "Online" if connected else "Offline"
-        connection_color = "white" if connected else "#ff4757"
-        self.connection_text = self.canvas.create_text(
-            735, 190,
-            text=connection_status,
-            fill=connection_color,
-            font=("Arial", 11, "bold")
-        )
-
-        # Modpack status indicator
+        # Primary CTA Button (Top Right)
         if wtf_modpack_installed:
-            status_text = "✅ Pronto per Giocare"
-            status_color = "#15d38f"
+            cta_text = "Avvia"
+            cta_command = self.get_play_button_command()
+            cta_color = "#34D399" if not self.is_minecraft_running else "#EF4444"
         else:
-            status_text = "⚠️ Installazione Richiesta"
-            status_color = "#ffa502"
-            
-        self.modpack_status_text = self.canvas.create_text(
-            512, 235,
-            text=status_text,
-            fill=status_color,
-            font=("Arial", 14, "bold")
-        )
+            cta_text = "Installa"
+            cta_command = self.install_modpack
+            cta_color = "#F59E0B"
 
-        # Install/Update button
-        if wtf_modpack_installed:
-            button_text = "🔄 Verifica Aggiornamenti"
-            button_command = self.check_for_updates
-            button_style = "info"
-        else:
-            button_text = "📦 Installa WTF Modpack"
-            button_command = self.install_modpack
-            button_style = "primary"
-
-        self.install_button = Button(
+        self.primary_cta = Button(
             self.window,
-            text=button_text,
-            command=button_command,
-            bootstyle=button_style,
-            width=25
+            text=cta_text,
+            command=cta_command,
+            width=12
         )
-        self.install_button.place(x=120, y=280, width=250, height=45)
+        self.primary_cta.place(x=750, y=15, width=100, height=50)
 
-        # Play button (larger and more prominent)
-        play_text = self.get_play_button_text()
-        play_command = self.get_play_button_command()
-        self.play_button = Button(
+        # Action buttons (Top Right)
+        self.verify_button = Button(
             self.window,
-            text=play_text,
-            command=play_command,
-            bootstyle="success" if not self.is_minecraft_running else "danger",
-            width=30
+            text="🔧",
+            command=self.verify_and_repair_installation if wtf_modpack_installed else None,
+            width=4
         )
-        self.play_button.place(x=387, y=275, width=250, height=55)
+        self.verify_button.place(x=860, y=15, width=40, height=25)
 
-        # Settings button
         self.settings_button = Button(
             self.window,
-            text="⚙️ Impostazioni",
+            text="⚙️",
             command=self.open_settings,
-            bootstyle="warning",
-            width=15
+            width=4
         )
-        self.settings_button.place(x=655, y=280, width=120, height=45)
+        self.settings_button.place(x=860, y=45, width=40, height=25)
 
-        # Repair button (only show if modpack is installed)
-        if wtf_modpack_installed:
-            self.repair_button = Button(
+        self.help_button = Button(
+            self.window,
+            text="❓",
+            command=self.show_help,
+            width=4
+        )
+        self.help_button.place(x=910, y=15, width=40, height=25)
+
+        self.update_button = Button(
+            self.window,
+            text="🔄",
+            command=self.check_for_updates if wtf_modpack_installed else None,
+            width=4
+        )
+        self.update_button.place(x=910, y=45, width=40, height=25)
+
+        # Status Strip (Compact chips)
+        chip_y = 95
+        
+        # Pack status chip
+        pack_status = "Installato" if wtf_modpack_installed else "Non installato"
+        pack_color = "#34D399" if wtf_modpack_installed else "#F59E0B"
+        self.canvas.create_rectangle(20, chip_y, 180, chip_y + 30, fill="#111827", outline="#1F2937", width=1)
+        self.canvas.create_text(25, chip_y + 8, text="Pack:", fill="#9CA3AF", font=("Arial", 9), anchor="w")
+        self.pack_status_text = self.canvas.create_text(25, chip_y + 20, text=pack_status, fill=pack_color, font=("Arial", 9, "bold"), anchor="w")
+
+        # System chip
+        total_ram_gb = int(svmem.total / (1024**3))
+        available_ram_gb = int(svmem.available / (1024**3))
+        allocated_ram_gb = allocated_ram.rstrip('G') if allocated_ram else str(WTF_MINIMUM_RAM)
+        self.canvas.create_rectangle(190, chip_y, 380, chip_y + 30, fill="#111827", outline="#1F2937", width=1)
+        self.canvas.create_text(195, chip_y + 8, text="Sistema:", fill="#9CA3AF", font=("Arial", 9), anchor="w")
+        self.system_status_text = self.canvas.create_text(195, chip_y + 20, text=f"RAM: {allocated_ram_gb}GB/{total_ram_gb}GB", fill="#E5E7EB", font=("Arial", 9), anchor="w")
+
+        # Connection chip
+        connection_status = "Online" if connected else "Offline"
+        connection_color = "#34D399" if connected else "#EF4444"
+        self.canvas.create_rectangle(390, chip_y, 550, chip_y + 30, fill="#111827", outline="#1F2937", width=1)
+        self.canvas.create_text(395, chip_y + 8, text="Connessione:", fill="#9CA3AF", font=("Arial", 9), anchor="w")
+        self.connection_status_text = self.canvas.create_text(395, chip_y + 20, text=connection_status, fill=connection_color, font=("Arial", 9, "bold"), anchor="w")
+
+        # Disk space chip
+        import shutil
+        free_space_gb = shutil.disk_usage('.').free / (1024**3)
+        self.canvas.create_rectangle(560, chip_y, 720, chip_y + 30, fill="#111827", outline="#1F2937", width=1)
+        self.canvas.create_text(565, chip_y + 8, text="Spazio:", fill="#9CA3AF", font=("Arial", 9), anchor="w")
+        self.disk_status_text = self.canvas.create_text(565, chip_y + 20, text=f"{free_space_gb:.1f}GB liberi", fill="#E5E7EB", font=("Arial", 9), anchor="w")
+
+        # Main Panel - Stepper
+        stepper_y = 140
+        self.canvas.create_rectangle(20, stepper_y, 1004, stepper_y + 280, fill="#111827", outline="#1F2937", width=1)
+        
+        # Step indicators
+        step_width = 320
+        for i, (step_num, step_title, step_desc) in enumerate([
+            ("1", "Seleziona Pack", "Installa o verifica il modpack"),
+            ("2", "Configura", "Imposta RAM e Java"),
+            ("3", "Avvia", "Lancia Minecraft")
+        ]):
+            x = 40 + i * step_width
+            
+            # Step number circle
+            if (i == 0 and not wtf_modpack_installed) or (i == 1 and wtf_modpack_installed and not username) or (i == 2 and wtf_modpack_installed and username):
+                circle_color = "#F59E0B"  # Current step
+                text_color = "#0B0F14"
+            elif (i == 0 and wtf_modpack_installed) or (i == 1 and username):
+                circle_color = "#34D399"  # Completed
+                text_color = "#0B0F14"
+            else:
+                circle_color = "#1F2937"  # Future step
+                text_color = "#9CA3AF"
+                
+            self.canvas.create_oval(x, stepper_y + 20, x + 30, stepper_y + 50, fill=circle_color, outline="")
+            self.canvas.create_text(x + 15, stepper_y + 35, text=step_num, fill=text_color, font=("Arial", 12, "bold"))
+            
+            # Step title and description
+            self.canvas.create_text(x + 40, stepper_y + 28, text=step_title, fill="#E5E7EB", font=("Arial", 12, "bold"), anchor="w")
+            self.canvas.create_text(x + 40, stepper_y + 45, text=step_desc, fill="#9CA3AF", font=("Arial", 10), anchor="w")
+            
+            # Connection line (except for last step)
+            if i < 2:
+                self.canvas.create_line(x + 30, stepper_y + 35, x + step_width - 10, stepper_y + 35, fill="#1F2937", width=2)
+
+        # Active step content area
+        content_y = stepper_y + 80
+        self.canvas.create_rectangle(40, content_y, 984, content_y + 120, fill="#0B0F14", outline="#1F2937", width=1)
+        
+        # Step content based on current state
+        if not wtf_modpack_installed:
+            # Step 1: Install pack
+            self.canvas.create_text(60, content_y + 20, text="Installa il pack per iniziare", fill="#F59E0B", font=("Arial", 14, "bold"), anchor="w")
+            self.canvas.create_text(60, content_y + 45, text="Il WTF Modpack include tutte le mod necessarie per giocare", fill="#9CA3AF", font=("Arial", 10), anchor="w")
+            
+            self.step_install_button = Button(
                 self.window,
-                text="🔧 Ripara",
-                command=self.verify_and_repair_installation,
-                bootstyle="secondary",
-                width=12
+                text="Installa Pack",
+                command=self.install_modpack,
+                width=15
             )
-            self.repair_button.place(x=790, y=280, width=100, height=45)
+            self.step_install_button.place(x=60, y=content_y + 70, width=120, height=35)
+            
+        elif not username:
+            # Step 2: Configure
+            self.canvas.create_text(60, content_y + 20, text="Configura il tuo profilo", fill="#F59E0B", font=("Arial", 14, "bold"), anchor="w")
+            self.canvas.create_text(60, content_y + 45, text="Imposta username e altre preferenze", fill="#9CA3AF", font=("Arial", 10), anchor="w")
+            
+            self.step_config_button = Button(
+                self.window,
+                text="Configura",
+                command=self.open_settings,
+                width=15
+            )
+            self.step_config_button.place(x=60, y=content_y + 70, width=120, height=35)
+            
+        else:
+            # Step 3: Ready to play
+            self.canvas.create_text(60, content_y + 20, text="Pronto. Seleziona un'opzione.", fill="#34D399", font=("Arial", 14, "bold"), anchor="w")
+            self.canvas.create_text(60, content_y + 45, text="Tutto configurato correttamente", fill="#9CA3AF", font=("Arial", 10), anchor="w")
+            
+            play_text = self.get_play_button_text()
+            self.step_play_button = Button(
+                self.window,
+                text=play_text,
+                command=self.get_play_button_command(),
+                width=15
+            )
+            self.step_play_button.place(x=60, y=content_y + 70, width=120, height=35)
 
         # Progress bar (initially hidden)
         self.progress_bar = Progressbar(
@@ -416,80 +461,69 @@ class WTFModpackLauncher():
             bootstyle="success-striped"
         )
 
-        # Status area background
-        self.canvas.create_rectangle(50, 360, 974, 480, fill="#2d2d2d", outline="#444444", width=1)
+        # Collapsible log area
+        log_y = stepper_y + 220
+        self.canvas.create_rectangle(40, log_y, 984, log_y + 60, fill="#111827", outline="#1F2937", width=1)
         
-        # Status header
-        self.canvas.create_text(
-            512, 375,
-            text="📊 STATO OPERAZIONI",
-            fill="#15d38f",
-            font=("Arial", 11, "bold")
+        # Log header with collapse toggle
+        self.log_collapsed = True
+        self.canvas.create_text(60, log_y + 15, text="Log operazioni", fill="#9CA3AF", font=("Arial", 10, "bold"), anchor="w")
+        self.toggle_log_button = Button(
+            self.window,
+            text="📋",
+            command=self.toggle_log,
+            width=4
         )
+        self.toggle_log_button.place(x=920, y=log_y + 5, width=30, height=20)
 
-        # Main status label
+        self.copy_log_button = Button(
+            self.window,
+            text="📋",
+            command=self.copy_log,
+            width=6
+        )
+        self.copy_log_button.place(x=955, y=log_y + 5, width=25, height=20)
+
+        # Status labels (for log content)
         self.status_label = Label(
             self.window,
-            text="🚀 Pronto per l'azione! Seleziona un'opzione sopra per iniziare.",
-            background="#2d2d2d",
-            foreground="white",
-            font=("Arial", 12, "bold")
+            text="Pronto. Seleziona un'opzione.",
+            background="#111827",
+            foreground="#E5E7EB",
+            font=("Arial", 10)
         )
-        self.status_label.place(x=512, y=400, anchor="center")
+        self.status_label.place(x=60, y=log_y + 35)
         
-        # Detailed status area (for longer messages)
         self.detail_label = Label(
             self.window,
             text="",
-            background="#2d2d2d",
-            foreground="#b0b0b0",
-            font=("Arial", 10),
+            background="#111827",
+            foreground="#9CA3AF",
+            font=("Arial", 9),
             wraplength=800
         )
-        self.detail_label.place(x=512, y=425, anchor="center")
         
-        # Progress percentage label
         self.progress_label = Label(
             self.window,
             text="",
-            background="#2d2d2d",
-            foreground="#15d38f",
-            font=("Arial", 10, "bold")
+            background="#111827",
+            foreground="#34D399",
+            font=("Arial", 9, "bold")
         )
-        self.progress_label.place(x=512, y=450, anchor="center")
 
-        # Footer section
-        self.canvas.create_rectangle(0, 500, 1024, 600, fill="#2d2d2d", outline="")
-        self.canvas.create_rectangle(0, 500, 1024, 505, fill="#15d38f", outline="")
-        
-        # Info panel at bottom
-        info_text = "💡 Suggerimento: Usa il modpack in modalità offline. Per il multiplayer Premium usa il launcher ufficiale."
-        self.info_text = self.canvas.create_text(
-            512, 530,
-            text=info_text,
-            fill="#b0b0b0",
-            font=("Arial", 10),
-            width=900
-        )
-        
-        # Version info at bottom
-        launcher_version = "WTF Modpack Launcher v1.0 • Creato per Minecraft 1.20.1"
+        # Footer
+        self.canvas.create_rectangle(0, 560, 1024, 600, fill="#111827", outline="")
+        footer_text = "Per il multiplayer usa il launcher ufficiale Minecraft"
         self.canvas.create_text(
-            512, 570,
-            text=launcher_version,
-            fill="#666666",
-            font=("Arial", 8),
-            width=900
+            512, 580,
+            text=footer_text,
+            fill="#9CA3AF",
+            font=("Arial", 9),
+            anchor="center"
         )
 
-        # Enable/disable play button based on installation status
-        if not wtf_modpack_installed:
-            self.play_button["state"] = "disabled"
-        
-        # Start monitoring Minecraft process
+        # Start monitoring and complete setup
         self.start_minecraft_monitor()
-        
-        # Mark setup as complete after a brief delay to allow UI to stabilize
         self.window.after(500, self.complete_setup)
 
     def complete_setup(self):
@@ -497,6 +531,106 @@ class WTFModpackLauncher():
         self.setup_complete = True
         self.update_play_button()
         print("✅ Setup del launcher completato!")
+    
+    def show_help(self):
+        """Show help dialog"""
+        showinfo("❓ Aiuto WTF Modpack", 
+                "🎮 WTF Modpack Launcher - Guida Rapida\n\n" +
+                "📦 Installazione:\n" +
+                "• Clicca 'Installa' per scaricare il modpack\n" +
+                "• Richiede connessione Internet\n\n" +
+                "⚙️ Configurazione:\n" +
+                "• Imposta username per modalità offline\n" +
+                "• Configura RAM (minimo 4GB)\n\n" +
+                "🎯 Avvio:\n" +
+                "• Clicca 'Avvia' per lanciare Minecraft\n" +
+                "• Prima configurazione più lenta\n\n" +
+                "💡 Suggerimenti:\n" +
+                "• Usa 'Verifica file' se ci sono problemi\n" +
+                "• Per multiplayer Premium usa launcher ufficiale")
+    
+    def toggle_log(self):
+        """Toggle log area visibility"""
+        # This will be implemented for showing/hiding detailed logs
+        pass
+    
+    def copy_log(self):
+        """Copy log content to clipboard"""
+        # This will be implemented to copy current status to clipboard
+        try:
+            import pyperclip
+            log_content = f"WTF Modpack Launcher Log\n" + \
+                         f"Status: {self.status_label.cget('text')}\n" + \
+                         f"Details: {self.detail_label.cget('text')}\n" + \
+                         f"Progress: {self.progress_label.cget('text')}"
+            pyperclip.copy(log_content)
+            showinfo("📋 Log Copiato", "Il log è stato copiato negli appunti!")
+        except ImportError:
+            showinfo("📋 Copia Log", "Installa pyperclip per copiare i log automaticamente.")
+        except Exception as e:
+            showinfo("📋 Errore", f"Impossibile copiare: {str(e)}")
+    
+    def update_status_chips(self):
+        """Update the status chips in the UI"""
+        try:
+            # Update pack status
+            pack_status = "Installato" if wtf_modpack_installed else "Non installato"
+            pack_color = "#34D399" if wtf_modpack_installed else "#F59E0B"
+            if hasattr(self, 'pack_status_text'):
+                self.canvas.itemconfig(self.pack_status_text, text=pack_status, fill=pack_color)
+            
+            # Update system status
+            allocated_ram_gb = allocated_ram.rstrip('G') if allocated_ram else str(WTF_MINIMUM_RAM)
+            total_ram_gb = int(svmem.total / (1024**3))
+            if hasattr(self, 'system_status_text'):
+                self.canvas.itemconfig(self.system_status_text, text=f"RAM: {allocated_ram_gb}GB/{total_ram_gb}GB")
+            
+            # Update connection status
+            connection_status = "Online" if connected else "Offline"
+            connection_color = "#34D399" if connected else "#EF4444"
+            if hasattr(self, 'connection_status_text'):
+                self.canvas.itemconfig(self.connection_status_text, text=connection_status, fill=connection_color)
+                
+        except Exception as e:
+            print(f"Error updating status chips: {e}")
+    
+    def show_help(self):
+        """Show help dialog"""
+        showinfo("❓ Aiuto WTF Modpack", 
+                "🎮 WTF Modpack Launcher - Guida Rapida\n\n" +
+                "📦 Installazione:\n" +
+                "• Clicca 'Installa' per scaricare il modpack\n" +
+                "• Richiede connessione Internet\n\n" +
+                "⚙️ Configurazione:\n" +
+                "• Imposta username per modalità offline\n" +
+                "• Configura RAM (minimo 4GB)\n\n" +
+                "🎯 Avvio:\n" +
+                "• Clicca 'Avvia' per lanciare Minecraft\n" +
+                "• Prima configurazione più lenta\n\n" +
+                "💡 Suggerimenti:\n" +
+                "• Usa 'Verifica file' se ci sono problemi\n" +
+                "• Per multiplayer Premium usa launcher ufficiale")
+    
+    def toggle_log(self):
+        """Toggle log area visibility"""
+        # This will be implemented for showing/hiding detailed logs
+        pass
+    
+    def copy_log(self):
+        """Copy log content to clipboard"""
+        # This will be implemented to copy current status to clipboard
+        try:
+            import pyperclip
+            log_content = f"WTF Modpack Launcher Log\n" + \
+                         f"Status: {self.status_label.cget('text')}\n" + \
+                         f"Details: {self.detail_label.cget('text')}\n" + \
+                         f"Progress: {self.progress_label.cget('text')}"
+            pyperclip.copy(log_content)
+            showinfo("📋 Log Copiato", "Il log è stato copiato negli appunti!")
+        except ImportError:
+            showinfo("📋 Copia Log", "Installa pyperclip per copiare i log automaticamente.")
+        except Exception as e:
+            showinfo("📋 Errore", f"Impossibile copiare: {str(e)}")
 
     def get_play_button_text(self):
         """Get the appropriate text for the play button based on current state"""
@@ -556,17 +690,22 @@ class WTFModpackLauncher():
         new_text = self.get_play_button_text()
         new_command = self.get_play_button_command()
         
-        self.play_button.config(text=new_text, command=new_command)
+        # Update primary CTA button
+        if hasattr(self, 'primary_cta'):
+            if wtf_modpack_installed:
+                if self.is_minecraft_running:
+                    self.primary_cta.config(text="Stop", command=self.close_minecraft)
+                else:
+                    self.primary_cta.config(text="Avvia", command=self.get_play_button_command())
+            else:
+                self.primary_cta.config(text="Installa", command=self.install_modpack)
         
-        # Update button style and state based on current status
-        if self.is_launcher_updating or not self.setup_complete:
-            self.play_button.config(bootstyle="warning", state="disabled")
-        elif self.is_minecraft_running:
-            self.play_button.config(bootstyle="danger", state="normal")
-        elif not wtf_modpack_installed:
-            self.play_button.config(bootstyle="secondary", state="disabled")
-        else:
-            self.play_button.config(bootstyle="success", state="normal")
+        # Update step play button if it exists
+        if hasattr(self, 'step_play_button'):
+            self.step_play_button.config(text=new_text, command=new_command)
+        
+        # Update status chips
+        self.update_status_chips()
     
     def close_minecraft(self):
         """Close the running Minecraft process"""
@@ -1506,19 +1645,24 @@ class WTFModpackLauncher():
 
     def update_gui_status(self, main_status, detail_status="", progress_text="", show_progress=False):
         """Update the GUI with detailed status information"""
-        self.status_label.config(text=main_status)
-        self.detail_label.config(text=detail_status)
-        self.progress_label.config(text=progress_text)
+        if hasattr(self, 'status_label'):
+            self.status_label.config(text=main_status)
+        if hasattr(self, 'detail_label'):
+            self.detail_label.config(text=detail_status)
+        if hasattr(self, 'progress_label'):
+            self.progress_label.config(text=progress_text)
         
         if show_progress:
-            if not self.progress_bar.winfo_viewable():
-                self.progress_bar.place(x=200, y=340, width=600, height=20)
+            if hasattr(self, 'progress_bar') and not self.progress_bar.winfo_viewable():
+                self.progress_bar.place(x=60, y=480, width=900, height=8)
                 self.progress_bar.start()
         else:
-            if self.progress_bar.winfo_viewable():
+            if hasattr(self, 'progress_bar') and self.progress_bar.winfo_viewable():
                 self.progress_bar.place_forget()
                 self.progress_bar.stop()
         
+        # Also update status chips
+        self.update_status_chips()
         self.window.update()
 
     def update_modpack_status(self, installed=None, version=None):
