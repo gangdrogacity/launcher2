@@ -1059,12 +1059,13 @@ class WTFModpackLauncher():
         if not username:
             showinfo("Configurazione Account", 
                     "🎮 Prima di giocare, devi configurare il tuo username!\n\n" +
-                    "📋 Il launcher aprirà una finestra per inserire:\n" +
+                    "📋 Il launcher aprirà le impostazioni per configurare:\n" +
                     "• Il tuo username per Minecraft\n" +
-                    "• Modalità di gioco offline\n\n" +
+                    "• Modalità di gioco offline\n" +
+                    "• Altre impostazioni del launcher\n\n" +
                     "⚠️ Nota: Questo launcher utilizza la modalità offline.\n" +
                     "Per giocare online con account Premium, usa il launcher ufficiale.")
-            self.open_login_window()
+            self.open_settings()
             return
         
         def launch_thread():
@@ -1204,122 +1205,7 @@ class WTFModpackLauncher():
                 "Pronto per l'azione!"
             )
 
-    def open_login_window(self):
-        """Open login window for username input"""
-        login_window = tk.Toplevel(self.window)
-        login_window.title("🎮 Configurazione Account")
-        login_window.geometry("450x300")
-        login_window.configure(bg="#1c1c1c")
-        login_window.resizable(False, False)
-        
-        # Center the window
-        login_window.transient(self.window)
-        login_window.grab_set()
-        
-        # Title
-        tk.Label(login_window, text="🎮 Configurazione Account Minecraft", 
-                bg="#1c1c1c", fg="#15d38f", font=self.custom_font3).pack(pady=15)
-        
-        # Description
-        tk.Label(login_window, text="Inserisci il tuo username per giocare in modalità offline.", 
-                bg="#1c1c1c", fg="white", font=self.custom_font4).pack(pady=5)
-        
-        tk.Label(login_window, text="L'username può essere qualsiasi nome a tua scelta.", 
-                bg="#1c1c1c", fg="gray", font=self.custom_font4).pack(pady=5)
-        
-        # Username input
-        tk.Label(login_window, text="👤 Username:", bg="#1c1c1c", fg="white", font=self.custom_font4).pack(pady=(15, 5))
-        
-        username_entry = tk.Entry(login_window, width=25, font=self.custom_font4, justify='center')
-        username_entry.pack(pady=5)
-        username_entry.focus()
-        
-        # Instructions
-        tk.Label(login_window, text="💡 Suggerimenti:", 
-                bg="#1c1c1c", fg="yellow", font=self.custom_font4).pack(pady=(15, 5))
-        tk.Label(login_window, text="• Usa solo lettere, numeri e underscore", 
-                bg="#1c1c1c", fg="gray", font=("Arial", 9)).pack()
-        tk.Label(login_window, text="• Evita spazi e caratteri speciali", 
-                bg="#1c1c1c", fg="gray", font=("Arial", 9)).pack()
-        tk.Label(login_window, text="• Lunghezza consigliata: 3-16 caratteri", 
-                bg="#1c1c1c", fg="gray", font=("Arial", 9)).pack()
-        
-        def save_username():
-            global username, uid
-            entered_username = username_entry.get().strip()
-            
-            if not entered_username:
-                tk.messagebox.showerror("❌ Errore", 
-                                       "⚠️ Devi inserire un username!\n\n" +
-                                       "L'username è necessario per identificarti nel gioco.")
-                username_entry.focus()
-                return
-            
-            if len(entered_username) < 3:
-                tk.messagebox.showerror("❌ Username Troppo Corto", 
-                                       "⚠️ L'username deve essere di almeno 3 caratteri.\n\n" +
-                                       "Inserisci un username più lungo.")
-                username_entry.focus()
-                return
-            
-            if len(entered_username) > 16:
-                tk.messagebox.showerror("❌ Username Troppo Lungo", 
-                                       "⚠️ L'username non può superare i 16 caratteri.\n\n" +
-                                       "Inserisci un username più corto.")
-                username_entry.focus()
-                return
-            
-            # Check for invalid characters
-            import re
-            if not re.match("^[a-zA-Z0-9_]+$", entered_username):
-                tk.messagebox.showerror("❌ Caratteri Non Validi", 
-                                       "⚠️ L'username può contenere solo:\n" +
-                                       "• Lettere (a-z, A-Z)\n" +
-                                       "• Numeri (0-9)\n" +
-                                       "• Underscore (_)\n\n" +
-                                       "Rimuovi spazi e caratteri speciali.")
-                username_entry.focus()
-                return
-            
-            username = entered_username
-            uid = str(uuid.uuid4())
-            
-            print(f"👤 Username configurato: {username}")
-            print(f"🆔 UUID generato: {uid}")
-            
-            data["User-info"][0]["username"] = username
-            data["User-info"][0]["UUID"] = uid
-            data["User-info"][0]["AUTH_TYPE"] = "offline"
-            
-            with open("settings.json", "w") as f:
-                json.dump(data, f, indent=4)
-            
-            print(f"💾 Configurazione salvata nel file settings.json")
-            
-            tk.messagebox.showinfo("✅ Configurazione Salvata", 
-                                  f"🎉 Account configurato con successo!\n\n" +
-                                  f"👤 Username: {username}\n" +
-                                  f"🎮 Modalità: Offline\n" +
-                                  f"💾 Configurazione salvata\n\n" +
-                                  f"Ora Minecraft verrà avviato!")
-            
-            login_window.destroy()
-            self.launch_minecraft()
-        
-        def on_enter(event):
-            save_username()
-        
-        username_entry.bind('<Return>', on_enter)
-        
-        # Buttons frame
-        button_frame = tk.Frame(login_window, bg="#1c1c1c")
-        button_frame.pack(pady=20)
-        
-        Button(button_frame, text="🎮 Conferma e Gioca", command=save_username, 
-               bootstyle="success-outline").pack(side=tk.LEFT, padx=10)
-        
-        Button(button_frame, text="❌ Annulla", command=login_window.destroy, 
-               bootstyle="danger-outline").pack(side=tk.LEFT, padx=10)
+
 
     def open_settings(self):
         """Open settings window"""
@@ -1379,6 +1265,7 @@ class WTFModpackLauncher():
                 return
             
             global username, uid
+            was_first_setup = username is None  # Controlla se è la prima configurazione
             username = new_username
             uid = str(uuid.uuid4())
             
@@ -1389,8 +1276,18 @@ class WTFModpackLauncher():
             with open("settings.json", "w") as f:
                 json.dump(data, f, indent=4)
             
-            tk.messagebox.showinfo("Successo", f"Username cambiato in: {username}")
-            settings_window.destroy()
+            # Se è la prima configurazione e il modpack è installato, offri di giocare subito
+            if was_first_setup and wtf_modpack_installed:
+                result = tk.messagebox.askquestion("✅ Username Configurato", 
+                                                  f"🎉 Username configurato con successo: {username}\n\n" +
+                                                  f"🎮 Il WTF Modpack è già installato!\n" +
+                                                  f"Vuoi avviare Minecraft subito?")
+                settings_window.destroy()
+                if result == 'yes':
+                    self.launch_minecraft()
+            else:
+                tk.messagebox.showinfo("✅ Successo", f"Username cambiato in: {username}")
+                settings_window.destroy()
         
         Button(username_input_frame, text="Cambia", command=change_username, 
                bootstyle="info-outline", width=8).pack(side="left", padx=5)
